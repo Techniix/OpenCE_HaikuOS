@@ -71,9 +71,12 @@ The result must show `ELF 32-bit LSB relocatable, x86-64`.
 ## Build
 
 ```sh
-python3 configure.py
+python3 configure.py --release
 ninja
 ```
+
+Without `--release`, the build is a debug build: a failed assertion stops
+the game and is written to the log. Use it to find and report problems.
 
 The option `--haiku-guest-cc` of `configure.py` selects a different clang for
 the game. `ld.lld` and `llvm-ar` are taken from the same folder. The option
