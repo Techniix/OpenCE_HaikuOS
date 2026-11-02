@@ -705,9 +705,21 @@ posix_ulong posix_resolve_ipv4(const char *host)
 
 /* ---------- the process and the desktop */
 
+#ifdef HALO_HAIKU_PORT
+/* the host's command line (port/haiku/host/host_main.c) */
+extern int halo_host_argc;
+extern char **halo_host_argv;
+#endif
+
 int posix_command_line_argument(int index, char *buffer, posix_ulong size)
 {
-#ifdef __ANDROID__
+#if defined(HALO_HAIKU_PORT)
+	/* (Haiku has no /proc/self/cmdline) */
+	if (index < 0 || index >= halo_host_argc || !halo_host_argv || !halo_host_argv[index] || !size)
+		return 0;
+	snprintf(buffer, size, "%s", halo_host_argv[index]);
+	return 1;
+#elif defined(__ANDROID__)
 	(void)index;
 	(void)buffer;
 	(void)size;

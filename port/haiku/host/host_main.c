@@ -170,6 +170,11 @@ static void *guest_main(void *boot)
 	return NULL;
 }
 
+/* the command line, for posix_command_line_argument (posix_net.c), which on
+Linux reads /proc/self/cmdline: Haiku has no /proc */
+int halo_host_argc;
+char **halo_host_argv;
+
 int main(int argc, char **argv)
 {
 	const char *image_path = getenv("HALO_GUEST_IMAGE");
@@ -179,7 +184,8 @@ int main(int argc, char **argv)
 	size_t image_size = 0;
 	int error;
 
-	(void)argc;
+	halo_host_argc = argc;
+	halo_host_argv = argv;
 	/* first: the address space below 4 GB, before SDL and the OpenGL
 	driver take any of it */
 	if (host_memory_initialize() != 0)

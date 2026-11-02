@@ -174,8 +174,8 @@ jobs:
               "$llvm" "${llvm}_clang" "${llvm}_lld" libsdl3 libsdl3_devel
             python3 configure.py --release
             ninja build/haiku/halo build/haiku/halo_guest.elf
-            # the game loads, runs and knows its build
-            ./build/haiku/halo --version | tee version.txt
+            # the game loads, runs and knows its build (a hang fails in 5 minutes)
+            timeout 300 ./build/haiku/halo --version | tee version.txt
             grep -q "^OpenCE build-$HALO_BUILD_NUMBER " version.txt
             # only the two programs and their checksums come back out
             mkdir -p out
