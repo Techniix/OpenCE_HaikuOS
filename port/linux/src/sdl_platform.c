@@ -672,8 +672,27 @@ static void platform_window_size_setting(long *width, long *height)
 
 	if (!platform_size_parse(config_string("display.window_size"), width, height))
 	{
-		*width = 640 * (scale < 1 ? 1 : scale);
-		*height = 480 * (scale < 1 ? 1 : scale);
+		SDL_Rect usable;
+
+		if (scale < 1)
+			scale = 1;
+		*width = 640 * scale;
+		*height = 480 * scale;
+		/* where that is larger than the display's usable area, the largest
+		4:3 size (in steps of 64x48) within nine tenths of it, but no smaller
+		than the Xbox's 640x480: not every desktop shrinks a window larger
+		than the screen (Haiku's leaves its edges off the screen) */
+		if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable) &&
+			(*width > usable.w || *height > usable.h))
+		{
+			long steps_wide = (long)usable.w * 9 / 10 / 64, steps_high = (long)usable.h * 9 / 10 / 48;
+			long steps = steps_wide < steps_high ? steps_wide : steps_high;
+
+			if (steps < 10)
+				steps = 10;
+			*width = 64 * steps;
+			*height = 48 * steps;
+		}
 	}
 }
 
