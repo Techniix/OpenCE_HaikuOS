@@ -184,6 +184,9 @@ python3 tools/haiku_release.py
 
 ## GPU acceleration with Nebula (experimental)
 
+> **Untested.** This has not been run on Haiku with Nebula yet. Please
+> report what happens, working or not, in the fork's issues.
+
 Haiku's own OpenGL is drawn by the processor. On a computer with an NVIDIA
 GPU of the Turing generation or later (GeForce GTX 16 and RTX 20 series and
 later), X547's [Nebula](https://github.com/X547/nvidia-haiku) driver set can

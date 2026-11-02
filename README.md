@@ -4,6 +4,15 @@
   <img src="port/assets/icon/opence-icon.png" alt="OpenCE" width="128">
 </p>
 
+> [!WARNING]
+> **This is the experimental `gpu-acceleration` branch, and it is untested.**
+> It adds support for GPU-accelerated OpenGL with X547's
+> [Nebula](https://github.com/X547/nvidia-haiku) driver set on NVIDIA GPUs
+> (Turing and later), but nobody has run it on Haiku with Nebula yet. It
+> may not work, or may not start. For a build that has been tested, use the
+> [`main`](https://github.com/Techniix/OpenCE_HaikuOS) branch. Refer to
+> "GPU acceleration" below.
+
 This is a fork of [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
 (Open Community Edition) that adds a native port to
 [Haiku](https://www.haiku-os.org/), the open source successor of BeOS.
@@ -58,14 +67,16 @@ draw the game instead of the processor.
 > software, and it replaces Haiku's Mesa package, so use a separate Haiku
 > installation on real hardware. For playing, use `main`.
 
-If you are a brave volunteer with such a GPU:
+This is that branch. If you are a brave volunteer with such a GPU, get it
+with:
 
 ```sh
 git clone -b gpu-acceleration https://github.com/Techniix/OpenCE_HaikuOS.git
 ```
 
-Then follow "GPU acceleration with Nebula" in that branch's
-`port/haiku/README.md`.
+Then build the game as in "Build and play on Haiku", and follow
+"GPU acceleration with Nebula" in
+[port/haiku/README.md](port/haiku/README.md#gpu-acceleration-with-nebula-experimental).
 [Open an issue](https://github.com/Techniix/OpenCE_HaikuOS/issues) with
 your GPU, your Haiku and Nebula versions, the first lines that the game
 prints (the `host info: OpenGL` lines say which driver draws), and how it
