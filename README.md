@@ -141,9 +141,16 @@ cp build/haiku/halo build/haiku/halo_guest.elf build/haiku/*.txt ~/halo/
 
 ## Download
 
-There are no ready-made Haiku builds yet: build the game as above. The
-downloads for Windows, Linux, Android and the web are
+Ready-made Haiku builds are on this fork's
+[Releases](https://github.com/Techniix/OpenCE_HaikuOS/releases) page, as
+`halo-haiku-release.zip`. Unpack it, install SDL3 (`pkgman install libsdl3`),
+put your disc image in the folder and start `halo`. Its `README.txt` says
+the rest. The downloads for Windows, Linux, Android and the web are
 [upstream's releases](https://github.com/OpenCommunityEdition/OpenCE/releases/latest).
+
+To make such a zip from your own build, enter
+`python3 tools/haiku_release.py` after building. It writes
+`dist/halo-haiku-release.zip`, with the licences that copies must carry.
 
 ## Build options
 
