@@ -45,6 +45,32 @@ internet games, sound, and quitting.
 - **The game does not respond:** press **Ctrl+Alt+Del** to open Team
   Monitor, select `halo` and click Kill Application.
 
+## GPU acceleration (experimental branch, untested)
+
+The [`gpu-acceleration`](https://github.com/Techniix/OpenCE_HaikuOS/tree/gpu-acceleration)
+branch is for computers with an NVIDIA GPU of the Turing generation or
+later (GeForce GTX 16 and RTX 20 series and later). With X547's
+[Nebula](https://github.com/X547/nvidia-haiku) driver set, the GPU could
+draw the game instead of the processor.
+
+> **Nobody has tested this branch yet.** It was made without the hardware
+> and has not been run on Haiku with Nebula. Nebula itself is alpha
+> software, and it replaces Haiku's Mesa package, so use a separate Haiku
+> installation on real hardware. For playing, use `main`.
+
+If you are a brave volunteer with such a GPU:
+
+```sh
+git clone -b gpu-acceleration https://github.com/Techniix/OpenCE_HaikuOS.git
+```
+
+Then follow "GPU acceleration with Nebula" in that branch's
+`port/haiku/README.md`.
+[Open an issue](https://github.com/Techniix/OpenCE_HaikuOS/issues) with
+your GPU, your Haiku and Nebula versions, the first lines that the game
+prints (the `host info: OpenGL` lines say which driver draws), and how it
+played. Reports that it does not work help as much as reports that it does.
+
 ## A copy of Halo: Combat Evolved is required
 
 This project does not include the game data. You **must provide your own
