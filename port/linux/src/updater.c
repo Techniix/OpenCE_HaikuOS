@@ -46,7 +46,13 @@ update.h's: posix_update.c on Linux, win32_update.c on Windows.
 #define HALO_BUILD_FLAVOR "release"
 #endif
 
-#define UPDATE_REPOSITORY "OpenCommunityEdition/OpenCE"
+/* the repository whose releases update the game: the one it was built from
+(tools/linux_build.py's build_repository: CI's, so a fork's builds take the
+fork's releases, as the Haiku port's do), else OpenCE's */
+#ifndef HALO_BUILD_REPOSITORY
+#define HALO_BUILD_REPOSITORY ""
+#endif
+#define UPDATE_REPOSITORY (HALO_BUILD_REPOSITORY[0] ? HALO_BUILD_REPOSITORY : "OpenCommunityEdition/OpenCE")
 #ifdef _WIN32
 #define UPDATE_PLATFORM "windows"
 #define PATH_SEPARATOR "\\"
@@ -356,6 +362,7 @@ done:
 static long updater_latest_release(void)
 {
 	char path[1200];
+	char url[300];
 	char error[512] = "";
 	size_t size = 0;
 	char *text;
@@ -363,8 +370,8 @@ static long updater_latest_release(void)
 	long build = 0;
 
 	updater_path(path, sizeof(path), "update-check.json");
-	if (!update_download("https://api.github.com/repos/" UPDATE_REPOSITORY "/releases/latest", path,
-		MAXIMUM_CHECK_SIZE, NULL, NULL, error, sizeof(error)))
+	snprintf(url, sizeof(url), "https://api.github.com/repos/%s/releases/latest", UPDATE_REPOSITORY);
+	if (!update_download(url, path, MAXIMUM_CHECK_SIZE, NULL, NULL, error, sizeof(error)))
 	{
 		platform_log("update: could not check for a new version: %s", error);
 		return 0;
@@ -452,7 +459,7 @@ static int SDLCALL updater_download_thread(void *context)
 /* the release's zip's address */
 static void updater_zip_url(char *url, size_t size)
 {
-	snprintf(url, size, "https://github.com/" UPDATE_REPOSITORY "/releases/download/build-%ld/" UPDATE_ASSET,
+	snprintf(url, size, "https://github.com/%s/releases/download/build-%ld/" UPDATE_ASSET, UPDATE_REPOSITORY,
 		updater_latest_build);
 }
 
