@@ -2,3 +2,7 @@
 # Windows checkout (core.autocrlf): a CRLF shebang line does not start.
 *.sh text eol=lf
 port/android/gradlew text eol=lf
+
+# This fork (the Haiku port) keeps its own README when OpenCE's is merged
+# (.github/workflows/haiku-release.yml sets the "ours" merge driver)
+README.md merge=ours

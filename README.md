@@ -145,12 +145,17 @@ Ready-made Haiku builds are on this fork's
 [Releases](https://github.com/Techniix/OpenCE_HaikuOS/releases) page, as
 `halo-haiku-release.zip`. Unpack it, install SDL3 (`pkgman install libsdl3`),
 put your disc image in the folder and start `halo`. Its `README.txt` says
-the rest. The downloads for Windows, Linux, Android and the web are
+the rest. These builds update themselves: when a newer release is out, the
+game offers to install it when it starts. The downloads for Windows, Linux,
+Android and the web are
 [upstream's releases](https://github.com/OpenCommunityEdition/OpenCE/releases/latest).
 
-To make such a zip from your own build, enter
-`python3 tools/haiku_release.py` after building. It writes
-`dist/halo-haiku-release.zip`, with the licences that copies must carry.
+The releases are built automatically from OpenCE's latest code, in a Haiku
+virtual machine on GitHub, and published after a test. To make such a zip
+from your own build, enter `python3 tools/haiku_release.py` after building.
+It writes `dist/halo-haiku-release.zip`, with the licences that copies must
+carry. Refer to "Releases and updates" in
+[port/haiku/README.md](port/haiku/README.md#releases-and-updates).
 
 ## Build options
 

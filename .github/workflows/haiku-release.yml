@@ -1,0 +1,266 @@
+name: Haiku release
+
+# Keeps this fork's Haiku build up to date with OpenCE:
+#
+# 1. sync: merges OpenCE's main into this fork's main (README.md keeps this
+#    fork's: .gitattributes). A merge that conflicts opens an issue and
+#    stops; nothing changes. With nothing new since the last release, it
+#    stops too (unless run by hand with "force").
+# 2. build: builds the merged code in a Haiku R1/beta6 virtual machine
+#    (cross-platform-actions), as release build-<n>, and checks it there:
+#    `halo --version` must load and run the game and name build-<n>, and
+#    the files must not change on their way out of the machine.
+# 3. release: moves main to the merged code and makes a draft release,
+#    build-<n>, with halo-haiku-release.zip. Nothing reaches players until
+#    the draft is published by hand (test it first): the game updates to the
+#    latest published release (port/linux/src/updater.c).
+#
+# A failed run opens an issue. Pushing a merge that changes OpenCE's own
+# workflows needs a personal access token with the Contents and Workflows
+# permissions in the SYNC_TOKEN secret, used for the pushes alone (GitHub's
+# own token may not push such changes); refer to port/haiku/README.md,
+# "Releases".
+#
+# OpenCE's own workflows (Build, Server image) publish OpenCE's releases;
+# in this fork they would publish Linux and Windows builds as build-<n> and
+# delete older releases, so each run disables every workflow but this one.
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build a draft release even if nothing changed since the last one"
+        type: boolean
+        default: false
+
+concurrency:
+  group: haiku-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+env:
+  UPSTREAM: https://github.com/OpenCommunityEdition/OpenCE.git
+  SYNC_BRANCH: haiku-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.decide.outputs.changed }}
+      sha: ${{ steps.merge.outputs.sha }}
+      number: ${{ steps.decide.outputs.number }}
+      previous: ${{ steps.decide.outputs.previous }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Disable OpenCE's own workflows
+        run: |
+          gh workflow list --all --json id,path,state \
+            --jq '.[] | select(.path != ".github/workflows/haiku-release.yml" and .state == "active") | .id' |
+          while read -r id; do
+            gh workflow disable "$id" && echo "disabled workflow $id"
+          done
+
+      - name: Merge OpenCE's main
+        id: merge
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # (.gitattributes: README.md merge=ours, this fork's README)
+          git config merge.ours.driver true
+          git remote add upstream "$UPSTREAM"
+          git fetch --quiet upstream main
+          if git merge --no-edit -m "Merge OpenCE's main" upstream/main; then
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            files=$(git diff --name-only --diff-filter=U)
+            git merge --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            title="OpenCE's changes conflict with the Haiku port"
+            if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[].number')" ]; then
+              {
+                echo "Merging OpenCE's main ($(git rev-parse --short upstream/main)) into this fork's main conflicts in:"
+                echo
+                echo "$files" | sed 's/^/- `/; s/$/`/'
+                echo
+                echo "Merge it by hand (\`git fetch $UPSTREAM main && git merge FETCH_HEAD\`), resolve these files and push."
+                echo "The next run builds it. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+              } > issue.md
+              gh issue create --title "$title" --body-file issue.md
+            fi
+          fi
+
+      - name: Decide whether to build
+        id: decide
+        if: steps.merge.outputs.conflict == 'false'
+        run: |
+          set -euo pipefail
+          sha="${{ steps.merge.outputs.sha }}"
+          # the releases, drafts too: build-<n>, the highest n and its commit
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.tag_name | test("^build-[0-9]+$")) | "\(.tag_name | ltrimstr("build-")) \(.target_commitish)"' |
+            sort -n > releases.txt || true
+          last=$(tail -n 1 releases.txt | cut -d' ' -f1)
+          last_target=$(tail -n 1 releases.txt | cut -d' ' -f2)
+          last=${last:-0}
+          # (a target given as a branch name: the commit of its tag, if published)
+          if [ -n "$last_target" ] && ! echo "$last_target" | grep -qE '^[0-9a-f]{40}$'; then
+            last_target=$(git rev-parse -q --verify "refs/tags/build-$last^{commit}" || echo "")
+          fi
+          echo "number=$((last + 1))" >> "$GITHUB_OUTPUT"
+          echo "previous=$last_target" >> "$GITHUB_OUTPUT"
+          if [ "$last_target" = "$sha" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "Nothing new since build-$last."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Building build-$((last + 1)) from $sha."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git push --force origin "HEAD:refs/heads/$SYNC_BRANCH"
+          fi
+
+  build:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.sha }}
+
+      - name: Build in Haiku
+        uses: cross-platform-actions/action@v1.6.0
+        env:
+          HALO_BUILD_NUMBER: ${{ needs.sync.outputs.number }}
+          HALO_REPOSITORY: ${{ github.repository }}
+        with:
+          operating_system: haiku
+          architecture: x86-64
+          version: r1beta6
+          shell: bash
+          cpu_count: 4
+          memory: 8G
+          environment_variables: HALO_BUILD_NUMBER HALO_REPOSITORY
+          run: |
+            set -euo pipefail
+            uname -a
+            pkgman refresh
+            # the newest LLVM that HaikuPorts has (llvm<n>, llvm<n>_clang, llvm<n>_lld)
+            llvm=$(pkgman search llvm | grep -oE 'llvm[0-9]+_clang' | sed 's/_clang$//' | sort -V | tail -n 1)
+            llvm=${llvm:-llvm23}
+            echo "LLVM: $llvm"
+            pkgman install -y cmd:git cmd:python3 cmd:ninja cmd:cmake cmd:pkg_config \
+              "$llvm" "${llvm}_clang" "${llvm}_lld" libsdl3 libsdl3_devel
+            # (the build's number and the repository whose releases update it)
+            export GITHUB_REPOSITORY="$HALO_REPOSITORY"
+            python3 configure.py --release
+            ninja build/haiku/halo build/haiku/halo_guest.elf
+            # the game loads, runs and knows its build
+            ./build/haiku/halo --version | tee version.txt
+            grep -q "^OpenCE build-$HALO_BUILD_NUMBER " version.txt
+            # only the two programs and their checksums come back out
+            mkdir -p out
+            cp build/haiku/halo build/haiku/halo_guest.elf out/
+            (cd out && sha256sum halo halo_guest.elf > SHA256SUMS && sha256sum -c SHA256SUMS)
+            rm -rf build
+
+      - name: Check the programs and pack them
+        run: |
+          set -euo pipefail
+          (cd out && sha256sum -c SHA256SUMS)
+          mkdir -p build/haiku
+          cp out/halo out/halo_guest.elf build/haiku/
+          python3 tools/haiku_release.py release
+          (cd dist && sha256sum halo-haiku-release.zip > SHA256SUMS && cat SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-haiku-release
+          path: |
+            dist/halo-haiku-release.zip
+            dist/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    needs: [sync, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: halo-haiku-release
+          path: dist
+
+      - name: Move main to the merged code
+        run: |
+          # (only forward: if main moved meanwhile, this fails and the next run merges again)
+          git push origin "${{ needs.sync.outputs.sha }}:refs/heads/main"
+
+      - name: Make the draft release
+        run: |
+          set -euo pipefail
+          number="${{ needs.sync.outputs.number }}"
+          sha="${{ needs.sync.outputs.sha }}"
+          previous="${{ needs.sync.outputs.previous }}"
+          {
+            echo "Haiku build $number, made automatically from $(git rev-parse --short "$sha")."
+            echo
+            echo "**This is a draft: test it, then publish it.** Players' games update to the latest published release."
+            echo
+            echo "Checked in a Haiku R1/beta6 virtual machine: it builds, and \`halo --version\` runs the game as build-$number."
+            echo "Not checked: playing it."
+            echo
+            if [ -n "$previous" ] && git cat-file -e "$previous^{commit}" 2>/dev/null; then
+              echo "Changes since the previous release:"
+              echo
+              git log --no-merges --format='- %s' "$previous..$sha" | head -n 60
+            fi
+            echo
+            echo "SHA-256:"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+          } > notes.md
+          gh release create "build-$number" dist/halo-haiku-release.zip dist/SHA256SUMS \
+            --draft --target "$sha" --title "Haiku build $number" --notes-file notes.md
+
+  report:
+    needs: [sync, build, release]
+    if: failure()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Open an issue
+        run: |
+          title="The Haiku release workflow failed"
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[].number')" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body \
+              "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          If it failed pushing (\"refusing to allow ... workflow\"), add the SYNC_TOKEN secret (port/haiku/README.md, \"Releases\").
+          If the Haiku build failed, OpenCE may use something the Haiku port does not bridge yet (port/haiku)."
+          fi

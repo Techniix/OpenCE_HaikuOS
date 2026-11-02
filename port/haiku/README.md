@@ -123,6 +123,65 @@ faster:
 - In a virtual machine, more processor cores. llvmpipe uses all of them.
   VirtualBox's 3D acceleration does not operate with Haiku.
 
+## Releases and updates
+
+The game updates itself from this repository's releases, as the other
+builds do from OpenCE's (`port/linux/src/updater.c`). At start-up, a
+numbered build asks GitHub for the repository's latest release. If its tag,
+`build-<n>`, is newer than the build's own number, the game offers to
+download its `halo-haiku-release.zip`, put its files in place and start
+again. A build has the number and the repository it was configured with:
+`HALO_BUILD_NUMBER` and `GITHUB_REPOSITORY` in the environment of
+`configure.py`, which GitHub Actions gives. A build without a number (any
+build of your own) never looks for updates. GitHub does not count drafts and
+pre-releases as the latest release, so players never get those.
+
+`.github/workflows/haiku-release.yml` makes the releases. Each night, and
+when you run it by hand, it:
+
+1. merges OpenCE's `main` into this fork's `main`. This fork's `README.md`
+   is kept (`.gitattributes`). A merge that conflicts opens an issue and
+   stops.
+2. builds the result in a Haiku R1/beta6 virtual machine as
+   `build-<n>` (the highest `build-` release, drafts too, plus 1), and checks
+   that `halo --version` runs the game and names that build;
+3. moves `main` to the merged code and makes a **draft** release with the
+   zip.
+
+Nothing reaches players until you publish the draft. Download its zip, play
+it for a while, then click Publish release, with "Set as the latest
+release" ticked. A run that fails opens an issue: most often OpenCE has
+started to use an SDL or system function that the Haiku port does not
+bridge yet (`port/haiku/host_imports.list`, `guest/runtime/guest_sdl.c`).
+
+To set it up, once:
+
+1. Make a fine-grained personal access token (GitHub: Settings → Developer
+   settings → Personal access tokens → Fine-grained tokens) for this
+   repository only, with the **Contents** and **Workflows** permissions set
+   to Read and write. Add it to the repository as the secret `SYNC_TOKEN`
+   (Settings → Secrets and variables → Actions). GitHub's own token cannot
+   push a merge that changes OpenCE's workflows; this one is used for the
+   pushes only.
+2. In the Actions tab, enable workflows. Then disable OpenCE's own workflows,
+   **Build** and **Server image**: in this fork they would publish Linux and
+   Windows builds as `build-<n>` releases and delete older ones. (Each run
+   of the Haiku workflow disables them too.)
+3. Run "Haiku release" by hand (Actions → Haiku release → Run workflow),
+   and tick "force" for the first run.
+
+GitHub stops scheduled workflows in a repository that has had no activity
+for 60 days; the Actions tab then offers to enable it again.
+
+A release by hand: build with a number, pack it, and attach the zip to a
+release whose tag has that number:
+
+```sh
+HALO_BUILD_NUMBER=5 GITHUB_REPOSITORY=Techniix/OpenCE_HaikuOS python3 configure.py --release
+ninja
+python3 tools/haiku_release.py
+```
+
 ## Differences from the Linux build
 
 - The window has no icon of its own.
@@ -130,8 +189,9 @@ faster:
   Linux build registers its link scheme with a freedesktop desktop entry,
   which Haiku does not read.
 - Discord's game activity is not shown, because Discord has no Haiku client.
-- The self-updater looks for `halo-haiku-<flavor>.zip` releases.
-  The project does not make those releases at this time.
+- The self-updater takes this repository's releases (the repository a build
+  was made from), and `halo-haiku-<flavor>.zip` in them. Refer to
+  "Releases and updates".
 
 ## Haiku-specific details for developers
 
