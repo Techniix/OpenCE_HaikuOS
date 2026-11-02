@@ -37,6 +37,13 @@ Built with the host's ABI, as the other posix_*.c.
 #include <unistd.h>
 
 #define UPDATE_USER_AGENT "halo-ce-universal-updater"
+/* (platform.h's, which this file, built for the host, does not include) */
+#ifdef HALO_HAIKU_PORT
+#define HALO_PORT_NAME "halo-haikuos"
+#else
+#define HALO_PORT_NAME "halo-linux"
+#endif
+
 #define MAXIMUM_REDIRECTS 8
 #define TIMEOUT_MILLISECONDS 20000
 #define MAXIMUM_HEADER_SIZE 16384
@@ -49,6 +56,7 @@ static const char *const certificate_bundles[] =
 	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
 	"/etc/ssl/ca-bundle.pem", /* openSUSE */
 	"/etc/ssl/cert.pem", /* Alpine, Arch, Void */
+	"/boot/system/data/ssl/CARootCertificates.pem", /* Haiku (ca_root_certificates) */
 };
 
 /* Android's folders of them, the first found used */
@@ -80,7 +88,7 @@ static void load_certificates(void)
 			certificates_loaded = 1;
 			if (environment && *environment)
 			{
-				fprintf(stderr, "halo-linux: update: SSL_CERT_FILE is ignored; the update server is checked "
+				fprintf(stderr, HALO_PORT_NAME ": update: SSL_CERT_FILE is ignored; the update server is checked "
 					"against %s\n", certificate_bundles[index]);
 			}
 			return;
@@ -103,7 +111,7 @@ Conscrypt module from Android 14 (the system's own is the older one) */
 		certificates.version)
 	{
 		certificates_loaded = 1;
-		fprintf(stderr, "halo-linux: update: WARNING: no system certificate authorities were found; the update "
+		fprintf(stderr, HALO_PORT_NAME ": update: WARNING: no system certificate authorities were found; the update "
 			"server is checked against SSL_CERT_FILE (%s) instead\n", environment);
 	}
 }

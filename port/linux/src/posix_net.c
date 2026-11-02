@@ -20,7 +20,12 @@ with the host ABI.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#if !defined(__HAIKU__)
 #include <sys/random.h>
+#endif
+#if defined(__HAIKU__) && !defined(IFF_RUNNING)
+#define IFF_RUNNING IFF_LINK /* (Haiku's "has link") */
+#endif
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -132,9 +137,87 @@ int posix_socket_last_error(void)
 	return last_error;
 }
 
+/* ---------- addresses: the game's are Winsock's (posix.h), which are
+Linux's, Windows's and Android's too; Haiku's sockaddr_in is BSD 4.4's
+instead: a length byte before an 8-bit family, AF_INET 1, and 32 bytes.
+There they are converted on the way in and out; elsewhere they pass. */
+
+#if defined(__HAIKU__)
+#define GAME_AF_INET 2
+
+struct game_sockaddr_in
+{
+	unsigned short family;
+	unsigned short port;
+	unsigned int address;
+	unsigned char zero[8];
+};
+
+static int host_family(int family)
+{
+	return family == GAME_AF_INET ? AF_INET : family;
+}
+
+static const struct sockaddr *address_in(const void *address, int length, struct sockaddr_storage *host,
+	socklen_t *host_length)
+{
+	const struct game_sockaddr_in *game = address;
+	struct sockaddr_in *in = (struct sockaddr_in *)host;
+
+	if (!address || length < (int)sizeof(*game) || game->family != GAME_AF_INET)
+	{
+		*host_length = (socklen_t)length;
+		return address;
+	}
+	memset(in, 0, sizeof(*in));
+	in->sin_len = sizeof(*in);
+	in->sin_family = AF_INET;
+	in->sin_port = game->port;
+	in->sin_addr.s_addr = game->address;
+	*host_length = sizeof(*in);
+	return (const struct sockaddr *)in;
+}
+
+static void address_out(const struct sockaddr_storage *host, socklen_t host_length, void *address, int *address_length)
+{
+	struct game_sockaddr_in game;
+	const void *source = host;
+	int size = (int)host_length;
+
+	if (!address || !address_length)
+		return;
+	if (host->ss_family == AF_INET && host_length >= sizeof(struct sockaddr_in))
+	{
+		const struct sockaddr_in *in = (const struct sockaddr_in *)host;
+
+		memset(&game, 0, sizeof(game));
+		game.family = GAME_AF_INET;
+		game.port = in->sin_port;
+		game.address = in->sin_addr.s_addr;
+		source = &game;
+		size = (int)sizeof(game);
+	}
+	memcpy(address, source, (size_t)(size < *address_length ? size : *address_length));
+	*address_length = size;
+}
+#else
+static int host_family(int family)
+{
+	return family;
+}
+
+static const struct sockaddr *address_in(const void *address, int length, struct sockaddr_storage *host,
+	socklen_t *host_length)
+{
+	(void)host;
+	*host_length = (socklen_t)length;
+	return address;
+}
+#endif
+
 int posix_socket(int family, int type, int protocol)
 {
-	return succeed(socket(family, type | SOCK_CLOEXEC, protocol));
+	return succeed(socket(host_family(family), type | SOCK_CLOEXEC, protocol));
 }
 
 int posix_socket_close(int socket)
@@ -144,7 +227,11 @@ int posix_socket_close(int socket)
 
 int posix_socket_bind(int socket, const void *address, int address_length)
 {
-	return succeed(bind(socket, address, (socklen_t)address_length));
+	struct sockaddr_storage host;
+	socklen_t host_length;
+	const struct sockaddr *host_address = address_in(address, address_length, &host, &host_length);
+
+	return succeed(bind(socket, host_address, host_length));
 }
 
 int posix_socket_connect(int socket, const void *address, int address_length)
@@ -155,7 +242,10 @@ int posix_socket_connect(int socket, const void *address, int address_length)
 	transport_endpoint_winsock.c); as WSAEINPROGRESS it gave up at once,
 	and every system link join failed, a split screen game's join of its
 	own host included. */
-	int result = connect(socket, address, (socklen_t)address_length);
+	struct sockaddr_storage host;
+	socklen_t host_length;
+	const struct sockaddr *host_address = address_in(address, address_length, &host, &host_length);
+	int result = connect(socket, host_address, host_length);
 
 	if (result < 0 && errno == EINPROGRESS)
 	{
@@ -172,12 +262,22 @@ int posix_socket_listen(int socket, int backlog)
 
 int posix_socket_accept(int socket, void *address, int *address_length)
 {
+#if defined(__HAIKU__)
+	struct sockaddr_storage host;
+	socklen_t length = sizeof(host);
+	int result = accept4(socket, (struct sockaddr *)&host, &length, SOCK_CLOEXEC);
+
+	if (result >= 0)
+		address_out(&host, length, address, address_length);
+	return succeed(result);
+#else
 	socklen_t length = address_length ? (socklen_t)*address_length : 0;
 	int result = accept4(socket, address, address_length ? &length : NULL, SOCK_CLOEXEC);
 
 	if (address_length)
 		*address_length = (int)length;
 	return succeed(result);
+#endif
 }
 
 int posix_socket_send(int socket, const void *buffer, int length, int flags)
@@ -188,8 +288,11 @@ int posix_socket_send(int socket, const void *buffer, int length, int flags)
 int posix_socket_sendto(int socket, const void *buffer, int length, int flags,
 	const void *address, int address_length)
 {
-	return succeed((int)sendto(socket, buffer, (size_t)length, flags | MSG_NOSIGNAL,
-		address, (socklen_t)address_length));
+	struct sockaddr_storage host;
+	socklen_t host_length;
+	const struct sockaddr *host_address = address_in(address, address_length, &host, &host_length);
+
+	return succeed((int)sendto(socket, buffer, (size_t)length, flags | MSG_NOSIGNAL, host_address, host_length));
 }
 
 int posix_socket_recv(int socket, void *buffer, int length, int flags)
@@ -203,17 +306,30 @@ int posix_socket_recvfrom(int socket, void *buffer, int length, int flags,
 	struct iovec vector;
 	struct msghdr message;
 	int result;
+#if defined(__HAIKU__)
+	struct sockaddr_storage host;
+#endif
 
 	vector.iov_base = buffer;
 	vector.iov_len = (size_t)length;
 	memset(&message, 0, sizeof(message));
+#if defined(__HAIKU__)
+	message.msg_name = address && address_length ? &host : NULL;
+	message.msg_namelen = address && address_length ? sizeof(host) : 0;
+#else
 	message.msg_name = address && address_length ? address : NULL;
 	message.msg_namelen = address && address_length ? (socklen_t)*address_length : 0;
+#endif
 	message.msg_iov = &vector;
 	message.msg_iovlen = 1;
 	result = (int)recvmsg(socket, &message, flags);
+#if defined(__HAIKU__)
+	if (result >= 0)
+		address_out(&host, message.msg_namelen, address, address_length);
+#else
 	if (address_length)
 		*address_length = (int)message.msg_namelen;
+#endif
 	/* a datagram larger than the buffer: both give its start, but Winsock
 	with WSAEMSGSIZE, which the game takes as an error, not as the datagram */
 	if (result >= 0 && (message.msg_flags & MSG_TRUNC))
@@ -311,20 +427,40 @@ int posix_socket_getsockopt(int socket, int level, int name, void *value, int *l
 
 int posix_socket_getsockname(int socket, void *address, int *address_length)
 {
+#if defined(__HAIKU__)
+	struct sockaddr_storage host;
+	socklen_t length = sizeof(host);
+	int result = getsockname(socket, (struct sockaddr *)&host, &length);
+
+	if (result >= 0)
+		address_out(&host, length, address, address_length);
+	return succeed(result);
+#else
 	socklen_t length = (socklen_t)*address_length;
 	int result = getsockname(socket, address, &length);
 
 	*address_length = (int)length;
 	return succeed(result);
+#endif
 }
 
 int posix_socket_getpeername(int socket, void *address, int *address_length)
 {
+#if defined(__HAIKU__)
+	struct sockaddr_storage host;
+	socklen_t length = sizeof(host);
+	int result = getpeername(socket, (struct sockaddr *)&host, &length);
+
+	if (result >= 0)
+		address_out(&host, length, address, address_length);
+	return succeed(result);
+#else
 	socklen_t length = (socklen_t)*address_length;
 	int result = getpeername(socket, address, &length);
 
 	*address_length = (int)length;
 	return succeed(result);
+#endif
 }
 
 int posix_socket_select(int *read, int *read_count, int *write, int *write_count,
@@ -484,6 +620,9 @@ posix_ulong posix_local_ipv4_address(void)
 	if (probe >= 0)
 	{
 		memset(&route, 0, sizeof(route));
+#if defined(__HAIKU__)
+		route.sin_len = sizeof(route);
+#endif
 		route.sin_family = AF_INET;
 		route.sin_port = htons(9);
 		route.sin_addr.s_addr = htonl(0xC6336401);
@@ -506,7 +645,13 @@ void posix_random_bytes(void *buffer, posix_ulong size)
 
 	while (size)
 	{
+#if defined(__HAIKU__)
+		/* (Haiku has getentropy, at most 256 bytes a call, and no getrandom) */
+		size_t chunk = size < 256 ? (size_t)size : 256;
+		ssize_t count = getentropy(cursor, chunk) == 0 ? (ssize_t)chunk : -1;
+#else
 		ssize_t count = getrandom(cursor, size, 0);
+#endif
 
 		if (count < 0 && errno == EINTR)
 			continue;
@@ -676,7 +821,9 @@ static int run_program(char *const arguments[])
 
 int posix_register_url_scheme(const char *scheme, const char *description)
 {
-#ifdef __ANDROID__
+	/* (Android's links come through its manifest; Haiku's desktop reads no
+	freedesktop entries) */
+#if defined(__ANDROID__) || defined(__HAIKU__)
 	(void)scheme;
 	(void)description;
 	return 0;

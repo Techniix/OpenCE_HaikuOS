@@ -779,7 +779,13 @@ ssdpDiscoverDevices(const char * const deviceTypes[],
 				int ifrlen = sizeof(ifr);
 				strncpy(ifr.ifr_name, multicastif, IFNAMSIZ);
 				ifr.ifr_name[IFNAMSIZ-1] = '\0';
+#ifdef __HAIKU__
+				/* (Haiku's ioctl takes the buffer's size as its 4th argument) */
+				(void)ifrlen;
+				if(ioctl(sudp, SIOCGIFADDR, &ifr, sizeof(ifr)) < 0)
+#else
 				if(ioctl(sudp, SIOCGIFADDR, &ifr, &ifrlen) < 0)
+#endif
 				{
 					PRINT_SOCKET_ERROR("ioctl(...SIOCGIFADDR...)");
 					goto error;

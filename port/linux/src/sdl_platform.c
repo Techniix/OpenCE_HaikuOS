@@ -1295,8 +1295,13 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 #ifndef HALO_ANDROID
 #ifndef HALO_GLES
 	/* the game's icon, which the desktop shows for the window (on Windows
-	also halo.exe's own, port/windows/halo.rc; a web page has its own) */
+	also halo.exe's own, port/windows/halo.rc; a web page has its own; on
+	Haiku, whose windows have none, the executable's) */
+#ifdef HALO_HAIKU_PORT
+	if (0)
+#else
 	if (platform_window_icon_size)
+#endif
 	{
 		SDL_Surface *icon = SDL_LoadPNG_IO(SDL_IOFromConstMem(platform_window_icon, platform_window_icon_size), true);
 
@@ -1353,8 +1358,13 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 
 		/* (Mesa's software renderers: no GPU driver for this window) */
 		if (renderer && (strstr(renderer, "llvmpipe") || strstr(renderer, "softpipe")))
+#ifdef HALO_HAIKU_PORT
+			platform_log("OpenGL is drawn on the processor (Haiku has no 3D drivers): borderless at the "
+				"display's size, no supersampling and lower resolution scaling draw faster");
+#else
 			platform_log("OpenGL is drawn on the processor, not the GPU (video driver %s): "
 				"refer to \"NVIDIA on Wayland\" in port/linux/README.md", SDL_GetCurrentVideoDriver());
+#endif
 	}
 #endif
 #ifndef HALO_ANDROID

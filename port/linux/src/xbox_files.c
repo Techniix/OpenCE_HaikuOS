@@ -170,6 +170,28 @@ const char *platform_save_root(void)
 		else if (getenv("APPDATA") && *getenv("APPDATA"))
 			snprintf(root, sizeof(root), "%s/halo", getenv("APPDATA"));
 #endif
+#ifdef HALO_HAIKU_PORT
+		/* Haiku's place for an application's own files, ~/config/settings;
+		saves from before, in $XDG_DATA_HOME/halo-linux (Haiku sets it to
+		~/config/non-packaged/data), are moved there once */
+		else if (home && *home)
+		{
+			char old[MAX_PATH];
+
+			snprintf(root, sizeof(root), "%s/config/settings/" HALO_PORT_NAME, home);
+			snprintf(old, sizeof(old), "%s/halo-linux",
+				data_home && *data_home ? data_home : "/boot/home/config/non-packaged/data");
+			if (!directory_exists(root) && directory_exists(old))
+			{
+				make_directories(root);
+				rmdir(root);
+				if (rename(old, root) == 0)
+					platform_log("saves moved from %s to %s", old, root);
+				else
+					platform_log("cannot move the saves in %s to %s: %s", old, root, strerror(errno));
+			}
+		}
+#endif
 		else if (data_home && *data_home)
 			snprintf(root, sizeof(root), "%s/halo-linux", data_home);
 		else if (home && *home)

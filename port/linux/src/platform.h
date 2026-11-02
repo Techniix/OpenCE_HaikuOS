@@ -31,7 +31,15 @@ the SDK headers are read, exactly as game code sees them. */
 
 /* ---------- logging */
 
-/* prints "halo-linux: <message>" to stderr */
+/* the port's name in its log lines and its own folders: the Haiku port
+(port/haiku) builds this layer as well, under its own name */
+#ifdef HALO_HAIKU_PORT
+#define HALO_PORT_NAME "halo-haikuos"
+#else
+#define HALO_PORT_NAME "halo-linux"
+#endif
+
+/* prints "<HALO_PORT_NAME>: <message>" to stderr */
 void platform_log(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
 /* opens the url in the system's browser (a Discord link's page: player_link.c);

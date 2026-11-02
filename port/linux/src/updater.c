@@ -50,6 +50,10 @@ update.h's: posix_update.c on Linux, win32_update.c on Windows.
 #ifdef _WIN32
 #define UPDATE_PLATFORM "windows"
 #define PATH_SEPARATOR "\\"
+#elif defined(HALO_HAIKU_PORT)
+/* (its own release's zip: never the Linux one, whose programs Haiku cannot run) */
+#define UPDATE_PLATFORM "haiku"
+#define PATH_SEPARATOR "/"
 #else
 #define UPDATE_PLATFORM "linux"
 #define PATH_SEPARATOR "/"
