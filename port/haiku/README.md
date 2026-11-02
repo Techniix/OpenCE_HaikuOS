@@ -182,6 +182,37 @@ ninja
 python3 tools/haiku_release.py
 ```
 
+## GPU acceleration with Nebula (experimental)
+
+Haiku's own OpenGL is drawn by the processor. On a computer with an NVIDIA
+GPU of the Turing generation or later (GeForce GTX 16 and RTX 20 series and
+later), X547's [Nebula](https://github.com/X547/nvidia-haiku) driver set can
+draw it with the GPU: NVIDIA's open kernel driver, Mesa's NVK Vulkan driver
+and Mesa's Zink, which is OpenGL over Vulkan. Nebula is alpha software. It
+takes the place of Haiku's Mesa package, so try it on a separate Haiku
+installation, on real hardware (it does not operate in a virtual machine).
+
+1. Install the `libglvnd` and `nebula` packages from Nebula's
+   [releases](https://github.com/X547/nvidia-haiku/releases), with
+   `pkgman install` and the address of each `.hpkg` file. Accept the removal
+   of the `mesa` package. Restart.
+2. Build and start the game as above. Its first lines say which driver
+   draws:
+
+   ```
+   host info: OpenGL lookups: SDL, Mesa's glapi not found, EGL found
+   host info: OpenGL: <n> functions from SDL, 0 from Mesa's glapi, <n> from EGL, 0 missing
+   host info: OpenGL driver: <vendor>, <renderer>, version <version> (hardware)
+   ```
+
+   `(hardware)` means the GPU draws. `software: drawn by the processor`
+   means Haiku's own OpenGL is in use.
+
+Nebula's libGL is glvnd's, which exports fewer functions than Mesa's, and it
+has no `libglapi`. `host_gl.c` asks `eglGetProcAddress` for the functions
+that SDL does not find. `HALO_GL_LOOKUP` (`sdl`, `glapi` or `egl`) makes it
+use one lookup only, to compare them.
+
 ## Differences from the Linux build
 
 - The window has no icon of its own.
