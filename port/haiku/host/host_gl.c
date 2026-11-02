@@ -15,6 +15,7 @@ objects get small handles.
 #include <SDL3/SDL_opengl.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAXIMUM_GL_IMPORTS 256
@@ -26,36 +27,95 @@ static struct
 } gl_imports[MAXIMUM_GL_IMPORTS];
 static int gl_import_count;
 
-/* the driver's function of this name: SDL's lookup, then Mesa's own. On
-Haiku, SDL looks only among the names libGL exports (get_image_symbol), and
-Mesa's libGL exports no newer function (glClipControl, glCreateQueries):
-_glapi_get_proc_address, in libglapi, which libGL itself asks, has them all */
-static int glapi_found;
+/* the driver's function of this name. SDL's lookup first; on Haiku it looks
+only among the names libGL exports (get_image_symbol), and neither Mesa's
+libGL nor glvnd's exports the newer functions (glClipControl,
+glCreateQueries). Then the driver's own lookups:
+- Mesa's _glapi_get_proc_address, in libglapi, which Mesa's libGL itself
+  asks: Haiku's own OpenGL (llvmpipe);
+- eglGetProcAddress, in libEGL: glvnd's, which Nebula (Mesa's NVK and Zink
+  for NVIDIA GPUs) puts in place of Haiku's Mesa, and which Mesa's libEGL
+  also answers.
+HALO_GL_LOOKUP ("sdl", "glapi" or "egl") takes one of them alone, to compare
+them on a driver. */
+enum
+{
+	_gl_source_sdl,
+	_gl_source_glapi,
+	_gl_source_egl,
+	NUMBER_OF_GL_SOURCES
+};
+
+static const char *const gl_source_names[NUMBER_OF_GL_SOURCES] = { "SDL", "Mesa's glapi", "EGL" };
+static int gl_found[NUMBER_OF_GL_SOURCES];
+
+static void *library_function(const char *const *libraries, size_t count, const char *name)
+{
+	size_t index;
+
+	for (index = 0; index < count; index++)
+	{
+		void *library = dlopen(libraries[index], RTLD_NOW | RTLD_LOCAL);
+		void *function = library ? dlsym(library, name) : NULL;
+
+		if (function)
+			return function;
+	}
+	return NULL;
+}
 
 static SDL_FunctionPointer gl_lookup(const char *name)
 {
-	static int tried;
+	static int initialized;
+	static int only = -1;
 	static void *(*glapi_get_proc_address)(const char *);
-	SDL_FunctionPointer function = SDL_GL_GetProcAddress(name);
+	static void *(*egl_get_proc_address)(const char *);
+	SDL_FunctionPointer function = NULL;
+	int source;
 
-	if (function)
-		return function;
-	if (!tried)
+	if (!initialized)
 	{
-		static const char *const libraries[] = { "libglapi.so.0", "libglapi.so", "libGL.so.1" };
-		size_t index;
+		static const char *const glapi_libraries[] = { "libglapi.so.0", "libglapi.so", "libGL.so.1" };
+		static const char *const egl_libraries[] = { "libEGL.so.1", "libEGL.so" };
+		const char *choice = getenv("HALO_GL_LOOKUP");
 
-		tried = 1;
-		for (index = 0; index < sizeof(libraries) / sizeof(libraries[0]) && !glapi_get_proc_address; index++)
+		initialized = 1;
+		for (source = 0; choice && *choice && source < NUMBER_OF_GL_SOURCES; source++)
 		{
-			void *library = dlopen(libraries[index], RTLD_NOW | RTLD_LOCAL);
+			static const char *const choices[NUMBER_OF_GL_SOURCES] = { "sdl", "glapi", "egl" };
 
-			if (library)
-				glapi_get_proc_address = (void *(*)(const char *))dlsym(library, "_glapi_get_proc_address");
+			if (!strcmp(choice, choices[source]))
+				only = source;
 		}
+		if (choice && *choice && only < 0)
+			host_logf(HOST_LOG_WARN, "HALO_GL_LOOKUP is \"%s\", not sdl, glapi or egl: ignored", choice);
+		glapi_get_proc_address = (void *(*)(const char *))library_function(glapi_libraries,
+			sizeof(glapi_libraries) / sizeof(glapi_libraries[0]), "_glapi_get_proc_address");
+		egl_get_proc_address = (void *(*)(const char *))library_function(egl_libraries,
+			sizeof(egl_libraries) / sizeof(egl_libraries[0]), "eglGetProcAddress");
+		host_logf(HOST_LOG_INFO, "OpenGL lookups: SDL, Mesa's glapi %s, EGL %s%s%s", glapi_get_proc_address ?
+			"found" : "not found", egl_get_proc_address ? "found" : "not found", only >= 0 ? "; only " : "",
+			only >= 0 ? gl_source_names[only] : "");
 	}
-	if (glapi_get_proc_address && (function = (SDL_FunctionPointer)glapi_get_proc_address(name)) != NULL)
-		glapi_found++;
+	for (source = 0; source < NUMBER_OF_GL_SOURCES && !function; source++)
+	{
+		if (only >= 0 && source != only)
+			continue;
+		switch (source)
+		{
+		case _gl_source_sdl:
+			function = SDL_GL_GetProcAddress(name);
+			break;
+		case _gl_source_glapi:
+			function = glapi_get_proc_address ? (SDL_FunctionPointer)glapi_get_proc_address(name) : NULL;
+			break;
+		case _gl_source_egl:
+			function = egl_get_proc_address ? (SDL_FunctionPointer)egl_get_proc_address(name) : NULL;
+			break;
+		}
+		if (function)
+			gl_found[source]++;
+	}
 	return function;
 }
 
@@ -74,6 +134,8 @@ void host_gl_note_import(uint64_t *slot, const char *name)
 	gl_import_count++;
 }
 
+static void host_gl_log_driver(void);
+
 int host_gl_bind_imports(void)
 {
 	int index, missing = 0;
@@ -91,11 +153,11 @@ int host_gl_bind_imports(void)
 		}
 		*gl_imports[index].slot = (uint64_t)(uintptr_t)function;
 	}
-	if (glapi_found)
-		host_logf(HOST_LOG_INFO, "OpenGL: %d of %d functions found through Mesa's glapi", glapi_found,
-			gl_import_count);
+	host_logf(HOST_LOG_INFO, "OpenGL: %d functions from SDL, %d from Mesa's glapi, %d from EGL, %d missing",
+		gl_found[_gl_source_sdl], gl_found[_gl_source_glapi], gl_found[_gl_source_egl], missing);
 	if (missing)
 		host_logf(HOST_LOG_WARN, "OpenGL: %d of %d functions are missing", missing, gl_import_count);
+	host_gl_log_driver();
 	return missing;
 }
 
@@ -120,6 +182,25 @@ static void resolve(void)
 	delete_sync = (void (APIENTRY *)(GLsync))gl_lookup("glDeleteSync");
 	debug_message_callback = (void (APIENTRY *)(GLDEBUGPROC, const void *))
 		gl_lookup("glDebugMessageCallback");
+}
+
+/* which driver draws: the vendor, renderer and version, and whether it is
+the processor (Mesa's llvmpipe or softpipe) or a GPU (Zink over NVK on
+NVIDIA, with Nebula) */
+static void host_gl_log_driver(void)
+{
+	const char *vendor, *renderer, *version;
+
+	resolve();
+	if (!get_string)
+		return;
+	vendor = (const char *)get_string(GL_VENDOR);
+	renderer = (const char *)get_string(GL_RENDERER);
+	version = (const char *)get_string(GL_VERSION);
+	host_logf(HOST_LOG_INFO, "OpenGL driver: %s, %s, version %s (%s)", vendor ? vendor : "?",
+		renderer ? renderer : "?", version ? version : "?",
+		renderer && (strstr(renderer, "llvmpipe") || strstr(renderer, "softpipe")) ?
+		"software: drawn by the processor" : "hardware");
 }
 
 void host_gl_get_string(uint32_t name, int index, char *buffer, uint32_t size)
