@@ -14,7 +14,7 @@
 **OpenCE** (Open Community Edition) is an open source port of the Halo: Combat Evolved decompilation (Halo CE) based on an early Xbox development build (2342) and forked from
 [bnunu/halo-1](https://github.com/bnunu/halo-1). The project aims to enhance the existing game and adds many features, such as 128-player multiplayer, online campaign co-op, mod packs, field-of-view settings, a server browser, peer-to-peer hosting, automatic map downloads, voice chat, support for Custom Edition maps and much more! 
 
-The game runs natively on **Windows, Linux, Android** and in the **web browser** with nothing to install. A macOS port is in progress. Worth noting that it is not an emulator, **the game's own code is compiled for each platform** with a new layer in place of the Xbox's hardware. Runs on OpenGL (Android is on OpenGL ES and WebGL 2 in the browser). Sound, input, gamepads are all handled through SDL3. The game currently draws a frame every refresh of your display with Smooth Motion enabled, while the simulation runs at 30 ticks just like the original Xbox. 
+The game runs natively on **Windows, Linux, Android**, **Haiku** and in the **web browser** with nothing to install. A macOS port is in progress. Worth noting that it is not an emulator, **the game's own code is compiled for each platform** with a new layer in place of the Xbox's hardware. Runs on OpenGL (Android is on OpenGL ES and WebGL 2 in the browser). Sound, input, gamepads are all handled through SDL3. The game currently draws a frame every refresh of your display with Smooth Motion enabled, while the simulation runs at 30 ticks just like the original Xbox. 
 
 <img width="1284" height="1007" alt="The game running on Windows" src="https://github.com/user-attachments/assets/0a4412e1-f6d3-48ed-8e17-0a374c2122f1" />
 <p align="center"><em>OpenCE running on Windows (release build)</em></p>
@@ -172,6 +172,7 @@ To build the game:
 | `ninja windows` (on Windows, or on Linux after `configure.py --windows-cross`) | `build/windows/halo.exe` and `SDL3.dll` |
 | `ninja android_apk` | `port/android/app/build/outputs/apk/debug/app-debug.apk` |
 | `ninja web` | `build/web/site/`, the web site (`python tools/web_serve.py` serves it) |
+| `ninja haiku` | `build/haiku/halo` and `halo_guest.elf` (refer to [port/haiku](port/haiku/README.md)) |
 
 If you enter `ninja` without a target, ninja builds the game for the
 computer that you use.
