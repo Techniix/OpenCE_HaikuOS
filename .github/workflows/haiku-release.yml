@@ -100,7 +100,8 @@ jobs:
                 echo "Merge it by hand (\`git fetch $UPSTREAM main && git merge FETCH_HEAD\`), resolve these files and push."
                 echo "The next run builds it. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
               } > issue.md
-              gh issue create --title "$title" --body-file issue.md
+              gh issue create --title "$title" --body-file issue.md ||
+                echo "::warning::Could not open an issue (are Issues enabled in Settings?): $title"
             fi
           fi
 
@@ -142,11 +143,16 @@ jobs:
         with:
           ref: ${{ needs.sync.outputs.sha }}
 
+      # (the build's number and the repository whose releases update it go to
+      # the virtual machine in a file of the workspace, which is copied there)
+      - name: Write the build's settings
+        run: |
+          printf 'export HALO_BUILD_NUMBER=%s\nexport GITHUB_REPOSITORY=%s\n' \
+            "${{ needs.sync.outputs.number }}" "${{ github.repository }}" > haiku-build.env
+          cat haiku-build.env
+
       - name: Build in Haiku
         uses: cross-platform-actions/action@v1.6.0
-        env:
-          HALO_BUILD_NUMBER: ${{ needs.sync.outputs.number }}
-          HALO_REPOSITORY: ${{ github.repository }}
         with:
           operating_system: haiku
           architecture: x86-64
@@ -154,9 +160,10 @@ jobs:
           shell: bash
           cpu_count: 4
           memory: 8G
-          environment_variables: HALO_BUILD_NUMBER HALO_REPOSITORY
           run: |
             set -euo pipefail
+            . ./haiku-build.env
+            echo "build-$HALO_BUILD_NUMBER of $GITHUB_REPOSITORY"
             uname -a
             pkgman refresh
             # the newest LLVM that HaikuPorts has (llvm<n>, llvm<n>_clang, llvm<n>_lld)
@@ -165,8 +172,6 @@ jobs:
             echo "LLVM: $llvm"
             pkgman install -y cmd:git cmd:python3 cmd:ninja cmd:cmake cmd:pkg_config \
               "$llvm" "${llvm}_clang" "${llvm}_lld" libsdl3 libsdl3_devel
-            # (the build's number and the repository whose releases update it)
-            export GITHUB_REPOSITORY="$HALO_REPOSITORY"
             python3 configure.py --release
             ninja build/haiku/halo build/haiku/halo_guest.elf
             # the game loads, runs and knows its build
@@ -257,10 +262,16 @@ jobs:
       - name: Open an issue
         run: |
           title="The Haiku release workflow failed"
-          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[].number')" ]; then
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body \
-              "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
-
-          If it failed pushing (\"refusing to allow ... workflow\"), add the SYNC_TOKEN secret (port/haiku/README.md, \"Releases\").
-          If the Haiku build failed, OpenCE may use something the Haiku port does not bridge yet (port/haiku)."
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          echo "::warning::$title: $run_url"
+          {
+            echo "Run: $run_url"
+            echo
+            echo "If it failed pushing (\"refusing to allow ... workflow\"), add the SYNC_TOKEN secret (port/haiku/README.md, \"Releases and updates\")."
+            echo "If the Haiku build failed, OpenCE may use something the Haiku port does not bridge yet (port/haiku)."
+          } > issue.md
+          # (no issue where Issues are off, as in a new fork: the warning above stays)
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[].number' 2>/dev/null)" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file issue.md ||
+              echo "::warning::Could not open an issue (are Issues enabled in Settings?)"
           fi
