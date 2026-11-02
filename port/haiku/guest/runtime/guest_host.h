@@ -102,6 +102,7 @@ unsigned int host_sdl_window_properties(unsigned int window);
 /* in points, or in pixels */
 int host_sdl_window_size(unsigned int window, int *width, int *height, int pixels);
 int host_sdl_set_window_size(unsigned int window, int width, int height);
+int host_sdl_set_window_position(unsigned int window, int x, int y);
 long long host_sdl_window_flags(unsigned int window);
 float host_sdl_window_pixel_density(unsigned int window);
 int host_sdl_set_window_fullscreen(unsigned int window, int fullscreen);

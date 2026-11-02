@@ -306,6 +306,13 @@ int host_sdl_set_window_size(uint32_t window, int width, int height)
 	return object ? SDL_SetWindowSize(object, width, height) : 0;
 }
 
+int host_sdl_set_window_position(uint32_t window, int x, int y)
+{
+	SDL_Window *object = handle_get(window, _handle_window);
+
+	return object ? SDL_SetWindowPosition(object, x, y) : 0;
+}
+
 int64_t host_sdl_window_flags(uint32_t window)
 {
 	SDL_Window *object = handle_get(window, _handle_window);

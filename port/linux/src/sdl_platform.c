@@ -749,6 +749,20 @@ static void platform_window_set_fullscreen(BOOL fullscreen)
 {
 	platform_fullscreen_requested = fullscreen;
 	SDL_SetWindowFullscreen(platform_window, fullscreen ? true : false);
+#ifdef HALO_HAIKU_PORT
+	/* SDL's Haiku window goes back to the frame it had when it went
+	fullscreen, which, for a window that opened fullscreen, is the
+	display's: it stayed over the whole display. The window's size and
+	place are given after it (its requests are taken in order). */
+	if (!fullscreen)
+	{
+		long width, height;
+
+		platform_window_size_setting(&width, &height);
+		SDL_SetWindowSize(platform_window, (int)width, (int)height);
+		SDL_SetWindowPosition(platform_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	}
+#endif
 }
 
 /* whether the window is fullscreen. SDL sets its flag when the window

@@ -751,6 +751,11 @@ bool SDL_SetWindowSize(SDL_Window *window, int width, int height)
 	return host_sdl_set_window_size(HANDLE_OF(window), width, height) != 0;
 }
 
+bool SDL_SetWindowPosition(SDL_Window *window, int x, int y)
+{
+	return host_sdl_set_window_position(HANDLE_OF(window), x, y) != 0;
+}
+
 SDL_WindowFlags SDL_GetWindowFlags(SDL_Window *window)
 {
 	return (SDL_WindowFlags)host_sdl_window_flags(HANDLE_OF(window));
