@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # root build script: writes build.ninja for the native ports (Linux, Windows,
-# Android) and the web port
+# Android, Haiku) and the web port
 
 import argparse
 import io
@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 from tools import ninja_syntax
 from tools.android_build import android_configure_inputs, generate_android_build
+from tools.haiku_build import generate_haiku_build, haiku_configure_inputs, host_system
 from tools.linux_build import check_profile_options, generate_linux_build, linux_configure_inputs
 from tools.web_build import generate_web_build, web_configure_inputs
 from tools.windows_build import generate_windows_build, windows_configure_inputs
@@ -90,6 +91,17 @@ parser.add_argument(
     help="clang with the arm64_32 target for the Android guest (default: clang)",
 )
 parser.add_argument(
+    "--haiku-guest-cc",
+    type=str,
+    help="clang with the x32 target (x86_64-linux-gnux32) for the Haiku build's guest, `ninja haiku`; "
+    "ld.lld and llvm-ar are taken from beside it (default: clang)",
+)
+parser.add_argument(
+    "--haiku-host-cc",
+    type=str,
+    help="compiler for the Haiku build's 64-bit host program (default: clang, else cc)",
+)
+parser.add_argument(
     "--web-emcc",
     type=str,
     help="Emscripten's emcc for `ninja web` (default: emcc on the PATH, then EMSDK's or ~/emsdk's)",
@@ -146,6 +158,8 @@ sln = SimpleNamespace(
     android_ndk=args.android_ndk,
     android_guest_cc=args.android_guest_cc,
     web_emcc=args.web_emcc,
+    haiku_guest_cc=args.haiku_guest_cc,
+    haiku_host_cc=args.haiku_host_cc,
 )
 if not is_windows():
     sln.windows_cc = args.windows_cc
@@ -171,6 +185,7 @@ n.newline()
 
 generate_linux_build(n, sln)
 generate_android_build(n, sln)
+generate_haiku_build(n, sln)
 generate_windows_build(n, sln)
 generate_web_build(n, sln)
 
@@ -189,6 +204,7 @@ n.build(
         Path("tools/ninja_syntax.py"),
         *linux_configure_inputs(),
         *android_configure_inputs(),
+        *haiku_configure_inputs(),
         *windows_configure_inputs(),
         *web_configure_inputs(),
     ],
@@ -197,7 +213,12 @@ n.newline()
 
 # the build for this computer, where it could be generated (the Windows
 # build is left out when SDL cannot be fetched, for instance)
-default = "windows" if is_windows() or sln.windows_cross else "linux"
+if is_windows() or sln.windows_cross:
+    default = "windows"
+elif host_system() == "haiku":
+    default = "haiku"
+else:
+    default = "linux"
 if f"\nbuild {default}: " in out.getvalue():
     n.comment("Default rule: the build for this computer")
     n.default(default)
