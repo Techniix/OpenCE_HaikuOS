@@ -1220,6 +1220,10 @@ static const struct config_setting config_settings[] =
 	{ "debug.gpu_flush_draws", _config_integer, "-1", "HALO_GPU_FLUSH_DRAWS", _environment_value, _platform_desktop,
 		"Flush the GPU's pipeline every this many draws: -1 for every 3 on Intel\n"
 		"graphics with Mesa's driver (which can hang without), 0 never." },
+	{ "debug.gpu_visibility_queries", _config_boolean, "true", "HALO_GPU_VISIBILITY_QUERIES", _environment_value, _platform_desktop,
+		"Test the visibility of lens flares and lights with GPU queries; false\n"
+		"skips the queries and draws them as fully visible (for drivers whose\n"
+		"queries hang or fault)." },
 	{ "debug.gpu_stats", _config_boolean, "false", "HALO_GPU_STATS", _environment_set_is_true, _platform_all,
 		"Log the renderer's draw counts once a second." },
 	{ "debug.gpu_trace_frame", _config_integer, "-1", "HALO_GPU_TRACE", _environment_value, _platform_all,
