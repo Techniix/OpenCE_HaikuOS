@@ -45,29 +45,24 @@ internet games, sound, and quitting.
 - **The game does not respond:** press **Ctrl+Alt+Del** to open Team
   Monitor, select `halo` and click Kill Application.
 
-## GPU acceleration (experimental branch, untested)
+## GPU acceleration (experimental)
 
-The [`gpu-acceleration`](https://github.com/Techniix/OpenCE_HaikuOS/tree/gpu-acceleration)
-branch is for computers with an NVIDIA GPU of the Turing generation or
-later (GeForce GTX 16 and RTX 20 series and later). With X547's
-[Nebula](https://github.com/X547/nvidia-haiku) driver set, the GPU could
-draw the game instead of the processor.
+The game draws with whatever OpenGL Haiku has. Haiku's own is drawn by the
+processor. On a computer with an NVIDIA GPU of the Turing generation or later
+(GeForce GTX 16 and RTX 20 series and later), an NVIDIA driver set for Haiku
+can draw it with the GPU instead: X547's
+[Nebula](https://github.com/X547/nvidia-haiku), or for GeForce RTX 50 cards
+[Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku), a fork of it.
 
-> **Nobody has tested this branch yet.** It was made without the hardware
-> and has not been run on Haiku with Nebula. Nebula itself is alpha
-> software, and it replaces Haiku's Mesa package, so use a separate Haiku
-> installation on real hardware. For playing, use `main`.
+> **Tested on one card so far:** a GeForce RTX 5070 with Techniix/nvidia-haiku,
+> where menus, levels and online play work. Frame rates are still uneven and
+> the picture can tear. These drivers are alpha software and replace Haiku's
+> Mesa, so try them on a separate Haiku installation on real hardware.
 
-If you are a brave volunteer with such a GPU:
-
-```sh
-git clone -b gpu-acceleration https://github.com/Techniix/OpenCE_HaikuOS.git
-```
-
-Then follow "GPU acceleration with Nebula" in that branch's
-`port/haiku/README.md`.
+See "GPU acceleration (experimental)" in
+[`port/haiku/README.md`](port/haiku/README.md).
 [Open an issue](https://github.com/Techniix/OpenCE_HaikuOS/issues) with
-your GPU, your Haiku and Nebula versions, the first lines that the game
+your GPU, your Haiku and driver versions, the first lines that the game
 prints (the `host info: OpenGL` lines say which driver draws), and how it
 played. Reports that it does not work help as much as reports that it does.
 

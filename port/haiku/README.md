@@ -182,36 +182,47 @@ ninja
 python3 tools/haiku_release.py
 ```
 
-## GPU acceleration with Nebula (experimental)
+## GPU acceleration (experimental)
 
 Haiku's own OpenGL is drawn by the processor. On a computer with an NVIDIA
 GPU of the Turing generation or later (GeForce GTX 16 and RTX 20 series and
-later), X547's [Nebula](https://github.com/X547/nvidia-haiku) driver set can
-draw it with the GPU: NVIDIA's open kernel driver, Mesa's NVK Vulkan driver
-and Mesa's Zink, which is OpenGL over Vulkan. Nebula is alpha software. It
-takes the place of Haiku's Mesa package, so try it on a separate Haiku
-installation, on real hardware (it does not operate in a virtual machine).
+later), an NVIDIA driver set for Haiku can draw it with the GPU: NVIDIA's
+open kernel driver, Mesa's NVK Vulkan driver and Mesa's Zink, which is
+OpenGL over Vulkan. Two exist, both alpha software that takes the place of
+Haiku's Mesa package, so try them on a separate Haiku installation on real
+hardware (they do not work in a virtual machine):
 
-1. Install the `libglvnd` and `nebula` packages from Nebula's
-   [releases](https://github.com/X547/nvidia-haiku/releases), with
-   `pkgman install` and the address of each `.hpkg` file. Accept the removal
-   of the `mesa` package. Restart.
-2. Build and start the game as above. Its first lines say which driver
-   draws:
+- X547's [Nebula](https://github.com/X547/nvidia-haiku). Download the
+  `libglvnd` and `nebula` `.hpkg` files from its releases and install them
+  with `pkgman install ./<file>.hpkg`, accepting the removal of `mesa`.
+  Nebula 0.0.2 does not start GeForce RTX 50 cards.
+- [Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku), a fork
+  with GeForce RTX 50 support. Follow its README.
 
-   ```
-   host info: OpenGL lookups: SDL, Mesa's glapi not found, EGL found
-   host info: OpenGL: <n> functions from SDL, 0 from Mesa's glapi, <n> from EGL, 0 missing
-   host info: OpenGL driver: <vendor>, <renderer>, version <version> (hardware)
-   ```
+Restart, then start the game from Terminal. Its first lines say which driver
+draws:
 
-   `(hardware)` means the GPU draws. `software: drawn by the processor`
-   means Haiku's own OpenGL is in use.
+```
+host info: OpenGL lookups: SDL, Mesa's glapi not found, EGL found
+host info: OpenGL: <n> functions from SDL, 0 from Mesa's glapi, <n> from EGL, 0 missing
+host info: OpenGL driver: <vendor>, <renderer>, version <version> (hardware)
+```
 
-Nebula's libGL is glvnd's, which exports fewer functions than Mesa's, and it
-has no `libglapi`. `host_gl.c` asks `eglGetProcAddress` for the functions
-that SDL does not find. `HALO_GL_LOOKUP` (`sdl`, `glapi` or `egl`) makes it
-use one lookup only, to compare them.
+`(hardware)` means the GPU draws. `software: drawn by the processor`
+means Haiku's own OpenGL is in use.
+
+Tested on a GeForce RTX 5070 with Techniix/nvidia-haiku: menus, levels and
+online play work; frame rates are uneven and the picture can tear.
+
+- If a level freezes while it loads, the driver's occlusion queries may be
+  faulting the GPU (look for `Warp Exception` in `/var/log/syslog`).
+  `debug.gpu_visibility_queries = false` in `config.toml` (or
+  `HALO_GPU_VISIBILITY_QUERIES=false`) skips them; lens flares and lights
+  then draw even behind walls.
+- The drivers' libGL is glvnd's, which exports fewer functions than Mesa's,
+  and there is no `libglapi`. `host_gl.c` asks `eglGetProcAddress` for the
+  functions that SDL does not find. `HALO_GL_LOOKUP` (`sdl`, `glapi` or
+  `egl`) makes it use one lookup only, to compare them.
 
 ## Differences from the Linux build
 
