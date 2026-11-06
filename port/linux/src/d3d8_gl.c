@@ -2529,7 +2529,12 @@ static void gl_initialize(void)
 	glGenQueries(VISIBILITY_TEST_SLOTS, device.queries);
 	glGenQueries(1, &device.scratch_query);
 #else
-	if (visibility_queries_initialize())
+	if (!config_boolean("debug.gpu_visibility_queries"))
+	{
+		device.visibility_unavailable = TRUE;
+		platform_log("GPU: visibility test queries are off (debug.gpu_visibility_queries); every test reports fully visible");
+	}
+	else if (visibility_queries_initialize())
 		visibility_results_initialize();
 	else
 	{
