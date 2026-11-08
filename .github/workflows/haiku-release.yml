@@ -65,6 +65,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.SYNC_TOKEN || github.token }}
 
+      - name: Keep the schedule running
+        # (GitHub stops a schedule after 60 days without activity in the
+        # repository; enabling the workflow resets that count)
+        run: |
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/haiku-release.yml/enable" ||
+            echo "::warning::Could not re-enable this workflow; it may stop after 60 quiet days"
+
       - name: Disable OpenCE's own workflows
         run: |
           gh workflow list --all --json id,path,state \
@@ -230,7 +237,7 @@ jobs:
           sha="${{ needs.sync.outputs.sha }}"
           previous="${{ needs.sync.outputs.previous }}"
           {
-            echo "Haiku build $number, made automatically from $(git rev-parse --short "$sha")."
+            echo "OpenCE for Haiku, build $number, made automatically from $(git rev-parse --short "$sha")."
             echo
             echo "**This is a draft: test it, then publish it.** Players' games update to the latest published release."
             echo
@@ -250,7 +257,7 @@ jobs:
             echo '```'
           } > notes.md
           gh release create "build-$number" dist/halo-haiku-release.zip dist/SHA256SUMS \
-            --draft --target "$sha" --title "Haiku build $number" --notes-file notes.md
+            --draft --target "$sha" --title "OpenCE for Haiku, build $number" --notes-file notes.md
 
   report:
     needs: [sync, build, release]
