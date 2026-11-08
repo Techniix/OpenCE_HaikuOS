@@ -36,6 +36,13 @@ Built with the host's ABI, as the other posix_*.c.
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef __HAIKU__
+#include <OS.h>
+#include <image.h>
+#include <limits.h>
+#include <stdlib.h>
+#endif
+
 #define UPDATE_USER_AGENT "halo-ce-universal-updater"
 /* (platform.h's, which this file, built for the host, does not include) */
 #ifdef HALO_HAIKU_PORT
@@ -812,6 +819,29 @@ int update_https_request(const char *method, const char *url, const char *header
 
 /* ---------- files and processes */
 
+#ifdef __HAIKU__
+/* (Haiku has no /proc: the path the program was loaded from is its image's) */
+int update_executable_path(char *path, int size)
+{
+	image_info information;
+	int32 cookie = 0;
+
+	while (get_next_image_info(B_CURRENT_TEAM, &cookie, &information) == B_OK)
+	{
+		if (information.type == B_APP_IMAGE)
+		{
+			char resolved[PATH_MAX];
+			const char *name = realpath(information.name, resolved) ? resolved : information.name;
+
+			if (name[0] != '/' || strlen(name) >= (size_t)size)
+				return 0;
+			strcpy(path, name);
+			return 1;
+		}
+	}
+	return 0;
+}
+#else
 int update_executable_path(char *path, int size)
 {
 	ssize_t length = readlink("/proc/self/exe", path, (size_t)size - 1);
@@ -821,6 +851,7 @@ int update_executable_path(char *path, int size)
 	path[length] = 0;
 	return 1;
 }
+#endif
 
 int update_replace_file(const char *path, const char *new_path, const char *old_path)
 {

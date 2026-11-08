@@ -309,6 +309,23 @@ static int zip_extract(SDL_IOStream *zip, char names[][256], int *name_count, ch
 			goto done;
 		name[name_length] = 0;
 		next = SDL_TellIO(zip) + (Sint64)(extra_length + comment_length);
+#ifdef HALO_HAIKU_PORT
+		/* port: the Haiku release's files are in a folder of their own
+		(halo-haiku-release/), so that unpacking it by hand does not spread
+		them over the folder it is in: that folder is left off the names */
+		if (strncmp(name, "halo-haiku-", 11) == 0 && strchr(name, '/'))
+		{
+			char *slash = strchr(name, '/');
+
+			memmove(name, slash + 1, strlen(slash + 1) + 1);
+			if (!*name)
+			{
+				SDL_SeekIO(zip, next, SDL_IO_SEEK_SET);
+				continue;
+			}
+			name_length = (unsigned long)strlen(name);
+		}
+#endif
 		/* (a folder, or a name that would leave the game's folder, is left
 		out: the release's files are all at its top) */
 		if (memchr(name, 0, name_length))
@@ -691,6 +708,11 @@ static void updater_clean_up(void)
 		"halo.old", "halo.exe.old", "SDL3.dll.old", "libSDL3.so.0.old", "SDL3-LICENSE.txt.old",
 		"extract-xiso-LICENSE.txt.old", "mbedtls-LICENSE.txt.old", "LICENSE.txt.old",
 		"extract-xiso-LICENSE.txt",
+#ifdef HALO_HAIKU_PORT
+		"halo_guest.elf.old", "brokers.txt.old", "masters.txt.old", "README.txt.old", "README-Haiku.md.old",
+		"miniupnpc-LICENSE.txt.old", "Overpass-OFL.txt.old", "expat-COPYING.txt.old", "opus-COPYING.txt.old",
+		"jsmn-LICENSE.txt.old", "lucide-LICENSE.txt.old", "musl-COPYRIGHT.txt.old",
+#endif
 	};
 	char path[1200];
 	size_t index;
