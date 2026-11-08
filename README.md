@@ -52,14 +52,16 @@ internet games, sound, and quitting.
 The game draws with whatever OpenGL Haiku has. Haiku's own is drawn by the
 processor. On a computer with an NVIDIA GPU of the Turing generation or later
 (GeForce GTX 16 and RTX 20 series and later), an NVIDIA driver set for Haiku
-can draw it with the GPU instead: X547's
-[Nebula](https://github.com/X547/nvidia-haiku), or for GeForce RTX 50 cards
-[Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku), a fork of it.
+can draw it with the GPU instead:
+[Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku) and its
+**quasar** package, a fork of X547's
+[nvidia-haiku](https://github.com/X547/nvidia-haiku) (whose package is
+`nebula`) that adds GeForce RTX 50 support.
 
-> **Tested on one card so far:** a GeForce RTX 5070 with Techniix/nvidia-haiku,
-> where menus, the campaign and online play work. These drivers are alpha
-> software and replace Haiku's Mesa, so try them on a separate Haiku
-> installation on real hardware.
+> **Tested on one card so far:** a GeForce RTX 5070 with quasar, where
+> menus, the campaign and online play work. The driver is alpha software.
+> It installs into your home packages, so holding Space at boot and
+> choosing **Disable user add-ons** starts Haiku without it.
 
 See "GPU acceleration (experimental)" in
 [`port/haiku/README.md`](port/haiku/README.md).

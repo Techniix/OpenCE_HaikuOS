@@ -193,16 +193,18 @@ Haiku's own OpenGL is drawn by the processor. On a computer with an NVIDIA
 GPU of the Turing generation or later (GeForce GTX 16 and RTX 20 series and
 later), an NVIDIA driver set for Haiku can draw it with the GPU: NVIDIA's
 open kernel driver, Mesa's NVK Vulkan driver and Mesa's Zink, which is
-OpenGL over Vulkan. Two exist, both alpha software that takes the place of
-Haiku's Mesa package, so try them on a separate Haiku installation on real
-hardware (they do not work in a virtual machine):
+OpenGL over Vulkan, with libglvnd. It is alpha software, and it does not
+work in a virtual machine.
 
-- X547's [Nebula](https://github.com/X547/nvidia-haiku). Download the
-  `libglvnd` and `nebula` `.hpkg` files from its releases and install them
-  with `pkgman install ./<file>.hpkg`, accepting the removal of `mesa`.
-  Nebula 0.0.2 does not start GeForce RTX 50 cards.
-- [Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku), a fork
-  with GeForce RTX 50 support. Follow its README.
+- **quasar**, from [Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku)
+  (recommended; GeForce RTX 50 support, and the fixes this game needed).
+  Follow its README: `tools/install-package.sh` installs it into your home
+  packages, and `tools/uninstall-package.sh` removes it. If Haiku does not
+  reach the desktop with it, hold Space at boot and choose **Disable user
+  add-ons**.
+- **nebula**, from X547's [nvidia-haiku](https://github.com/X547/nvidia-haiku),
+  the project quasar is forked from. Its 0.0.2 release does not start
+  GeForce RTX 50 cards. quasar takes its place; do not install both.
 
 Restart, then start the game from Terminal. Its first lines say which driver
 draws:
@@ -216,17 +218,24 @@ host info: OpenGL driver: <vendor>, <renderer>, version <version> (hardware)
 `(hardware)` means the GPU draws. `software: drawn by the processor`
 means Haiku's own OpenGL is in use.
 
-Tested on a GeForce RTX 5070 with Techniix/nvidia-haiku: menus, the
-campaign and online play work.
+Tested on a GeForce RTX 5070 with quasar: menus, the campaign and online
+play work.
 
-The game needs no setting for this: it draws with whichever OpenGL is
-installed. To play drawn by the processor again, uninstall the driver set
-and reinstall Haiku's `mesa` package.
+The game needs no setting for this: it draws with whichever OpenGL Haiku
+loads for it, the GPU's when quasar is installed. quasar's OpenGL is in
+your home folder's libraries, ahead of Haiku's own, so starting the game
+with the system's libraries first draws it on the processor for that start,
+to compare or to work around a driver problem:
+
+```sh
+LIBRARY_PATH='%A/lib:/boot/system/lib' ./halo
+```
+
+The `OpenGL driver:` line then ends with `software: drawn by the processor`.
 
 - If a level freezes while it loads, with `Warp Exception` in
   `/var/log/syslog`, the driver gave the game memory at addresses that the
-  GPU's shaders reserve. Techniix/nvidia-haiku fixes this; update the
-  driver. `debug.gpu_visibility_queries = false` in `config.toml` (or
+  GPU's shaders reserve. quasar fixes this; update it. `debug.gpu_visibility_queries = false` in `config.toml` (or
   `HALO_GPU_VISIBILITY_QUERIES=false`) skips the game's occlusion queries,
   which can avoid it on other drivers; lens flares and lights then draw even
   behind walls.
