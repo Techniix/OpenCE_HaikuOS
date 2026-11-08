@@ -21,10 +21,10 @@ and the web) are upstream's: refer to
 On Haiku, these work: the menus, the campaign, the server browser, joining
 internet games, sound, and quitting.
 
-> **Tested in virtual machines only.** The port was made and tested in
-> VirtualBox (Haiku R1/beta6, x86_64), where OpenGL is drawn by the
-> processor. It has not been tried on real hardware yet. If you have Haiku
-> on a real computer, please try it, and
+> **Tested on:** VirtualBox (Haiku R1/beta6, x86_64), where OpenGL is
+> drawn by the processor, and a real computer with a GeForce RTX 5070, where
+> the GPU draws it (refer to "GPU acceleration" below). If you have Haiku on
+> other hardware, please try it, and
 > [open an issue](https://github.com/Techniix/OpenCE_HaikuOS/issues) with
 > your hardware, your Haiku version (`uname -a`) and what happened. Reports
 > that it works are welcome too.
@@ -35,10 +35,12 @@ internet games, sound, and quitting.
   screen:** use **Borderless** fullscreen. It is the default. Set it in
   Settings → Video Setup → Display Mode, press **F11**, or put
   `display.mode = "borderless"` in `config.toml`.
-- **The game is slow:** Haiku has no 3D drivers, so OpenGL is drawn by the
-  processor. Keep Borderless at the display's size and anti-aliasing off,
-  and try resolution scaling at 75% or 50%. In a virtual machine, give it
-  more processor cores.
+- **The game is slow:** without a GPU driver, Haiku's OpenGL is drawn by
+  the processor. Keep Borderless at the display's size and anti-aliasing
+  off, and try resolution scaling at 75% or 50%. In a virtual machine, give
+  it more processor cores. With an NVIDIA GPU, refer to "GPU acceleration".
+  The game uses the GPU by itself when a driver is installed: there is
+  nothing to turn on.
 - **The server browser shows no games:** check the computer's clock and
   time zone (Preferences → Time). The game refuses a server list that seems
   to be from the future.
@@ -55,9 +57,9 @@ can draw it with the GPU instead: X547's
 [Techniix/nvidia-haiku](https://github.com/Techniix/nvidia-haiku), a fork of it.
 
 > **Tested on one card so far:** a GeForce RTX 5070 with Techniix/nvidia-haiku,
-> where menus, levels and online play work. Frame rates are still uneven and
-> the picture can tear. These drivers are alpha software and replace Haiku's
-> Mesa, so try them on a separate Haiku installation on real hardware.
+> where menus, the campaign and online play work. These drivers are alpha
+> software and replace Haiku's Mesa, so try them on a separate Haiku
+> installation on real hardware.
 
 See "GPU acceleration (experimental)" in
 [`port/haiku/README.md`](port/haiku/README.md).

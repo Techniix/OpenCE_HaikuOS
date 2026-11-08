@@ -10,8 +10,9 @@ Keep the two files together. Copy `build/haiku/brokers.txt` and
 `build/haiku/masters.txt` beside them for Internet play.
 
 The game shows its graphics with OpenGL (Mesa) and plays sound through
-SDL3. Haiku has no 3D drivers, so OpenGL is drawn on the processor. Refer to
-"Performance".
+SDL3. With a supported NVIDIA GPU and its driver, OpenGL is drawn on the GPU
+(refer to "GPU acceleration"); otherwise Mesa draws it on the processor
+(refer to "Performance").
 
 ## How it works
 
@@ -171,7 +172,11 @@ To set it up, once:
    and tick "force" for the first run.
 
 GitHub stops scheduled workflows in a repository that has had no activity
-for 60 days; the Actions tab then offers to enable it again.
+for 60 days. Each run enables the workflow again, which resets that count,
+so it keeps running while OpenCE is quiet. If it was stopped anyway, the
+Actions tab offers to enable it. A fine-grained token expires (at most a
+year after it is made): make a new one and replace `SYNC_TOKEN` before then,
+or the runs fail and open an issue.
 
 A release by hand: build with a number, pack it, and attach the zip to a
 release whose tag has that number:
@@ -211,14 +216,20 @@ host info: OpenGL driver: <vendor>, <renderer>, version <version> (hardware)
 `(hardware)` means the GPU draws. `software: drawn by the processor`
 means Haiku's own OpenGL is in use.
 
-Tested on a GeForce RTX 5070 with Techniix/nvidia-haiku: menus, levels and
-online play work; frame rates are uneven and the picture can tear.
+Tested on a GeForce RTX 5070 with Techniix/nvidia-haiku: menus, the
+campaign and online play work.
 
-- If a level freezes while it loads, the driver's occlusion queries may be
-  faulting the GPU (look for `Warp Exception` in `/var/log/syslog`).
-  `debug.gpu_visibility_queries = false` in `config.toml` (or
-  `HALO_GPU_VISIBILITY_QUERIES=false`) skips them; lens flares and lights
-  then draw even behind walls.
+The game needs no setting for this: it draws with whichever OpenGL is
+installed. To play drawn by the processor again, uninstall the driver set
+and reinstall Haiku's `mesa` package.
+
+- If a level freezes while it loads, with `Warp Exception` in
+  `/var/log/syslog`, the driver gave the game memory at addresses that the
+  GPU's shaders reserve. Techniix/nvidia-haiku fixes this; update the
+  driver. `debug.gpu_visibility_queries = false` in `config.toml` (or
+  `HALO_GPU_VISIBILITY_QUERIES=false`) skips the game's occlusion queries,
+  which can avoid it on other drivers; lens flares and lights then draw even
+  behind walls.
 - The drivers' libGL is glvnd's, which exports fewer functions than Mesa's,
   and there is no `libglapi`. `host_gl.c` asks `eglGetProcAddress` for the
   functions that SDL does not find. `HALO_GL_LOOKUP` (`sdl`, `glapi` or

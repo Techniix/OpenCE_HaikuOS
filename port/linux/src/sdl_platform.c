@@ -1392,8 +1392,9 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 		/* (Mesa's software renderers: no GPU driver for this window) */
 		if (renderer && (strstr(renderer, "llvmpipe") || strstr(renderer, "softpipe")))
 #ifdef HALO_HAIKU_PORT
-			platform_log("OpenGL is drawn on the processor (Haiku has no 3D drivers): borderless at the "
-				"display's size, no supersampling and lower resolution scaling draw faster");
+			platform_log("OpenGL is drawn on the processor, not the GPU: refer to \"GPU acceleration\" in "
+				"README-Haiku.md. Borderless at the display's size, no supersampling and lower resolution "
+				"scaling draw faster");
 #else
 			platform_log("OpenGL is drawn on the processor, not the GPU (video driver %s): "
 				"refer to \"NVIDIA on Wayland\" in port/linux/README.md", SDL_GetCurrentVideoDriver());
