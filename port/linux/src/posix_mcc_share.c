@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 #else
+#include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -108,6 +109,65 @@ int posix_mcc_share_publish(const char *from, const char *to)
     return MoveFileA(from,to)!=0;
 #elif defined(__linux__) && defined(SYS_renameat2)
     return syscall(SYS_renameat2,AT_FDCWD,from,AT_FDCWD,to,1 /* RENAME_NOREPLACE */)==0;
+#elif defined(__HAIKU__)
+    /* Haiku has no renameat2 and no RENAME_NOREPLACE, and BFS has no hard
+     * links, so link() then unlink() cannot stand in for it either. Instead
+     * the name is claimed first, with a call that fails if anything already
+     * has it, and the download is then renamed over that claim:
+     *
+     * - a folder (a package being installed) claims the name with mkdir().
+     *   rename() replaces a folder only while it is empty (BFS: bfs_rename
+     *   removes the target with Inode::Remove, which refuses a non-empty
+     *   folder with B_DIRECTORY_NOT_EMPTY), so if the claim is no longer
+     *   empty by then, nothing is replaced;
+     * - a file (a finished download, name.part to name) claims the name with
+     *   open(O_CREAT|O_EXCL|O_NOFOLLOW), an empty file only this call made.
+     *
+     * Either way an existing file, folder or link is never touched, and of
+     * two publications to one name only the first gets past the claim. A
+     * failed rename() takes the claim back, and only the claim: rmdir()
+     * removes only an empty folder, and the file is removed only while it
+     * is still the one this call created (same device and inode). As on the
+     * other systems, another process of the same user changing the folder
+     * meanwhile is outside what this protects against. */
+    {
+        struct stat source;
+        struct stat claimed;
+        struct stat current;
+        int descriptor=-1;
+        int error;
+        if (lstat(from,&source)!=0) return 0;
+        if (S_ISDIR(source.st_mode)) {
+            if (mkdir(to,0700)!=0) return 0;
+        } else if (S_ISREG(source.st_mode)) {
+            descriptor=open(to,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0600);
+            if (descriptor<0) return 0;
+            if (fstat(descriptor,&claimed)!=0) {
+                error=errno;
+                close(descriptor);
+                unlink(to);
+                errno=error;
+                return 0;
+            }
+        } else {
+            errno=EINVAL;
+            return 0;
+        }
+        if (rename(from,to)==0) {
+            if (descriptor>=0) close(descriptor);
+            return 1;
+        }
+        error=errno;
+        if (descriptor<0) {
+            rmdir(to);
+        } else {
+            if (lstat(to,&current)==0 && current.st_dev==claimed.st_dev && current.st_ino==claimed.st_ino)
+                unlink(to);
+            close(descriptor);
+        }
+        errno=error;
+        return 0;
+    }
 #else
     /* OPFS uses the MCC direct-stage commit strategy instead. Never weaken
      * native directory publication to a check followed by replacing rename. */
