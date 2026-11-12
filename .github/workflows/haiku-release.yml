@@ -49,6 +49,9 @@ permissions:
 env:
   UPSTREAM: https://github.com/OpenCommunityEdition/OpenCE.git
   SYNC_BRANCH: haiku-sync
+  # (gh's repository: with a remote named upstream, gh would otherwise pick
+  # OpenCE's, and its issues and releases there are not this token's)
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   sync:
