@@ -10,10 +10,12 @@ name: Haiku release
 #    (cross-platform-actions), as release build-<n>, and checks it there:
 #    `halo --version` must load and run the game and name build-<n>, and
 #    the files must not change on their way out of the machine.
-# 3. release: moves main to the merged code and makes a draft release,
-#    build-<n>, with halo-haiku-release.zip. Nothing reaches players until
-#    the draft is published by hand (test it first): the game updates to the
-#    latest published release (port/linux/src/updater.c).
+# 3. release: moves main to the merged code and publishes release
+#    build-<n>, with halo-haiku-release.zip, as the latest release: players'
+#    games offer it when they start (port/linux/src/updater.c). Its notes
+#    (tools/haiku_release_notes.sh) list OpenCE's pull requests and this
+#    fork's commits since the previous release. A build that fails stops
+#    here, and players keep the release they have.
 #
 # A failed run opens an issue. Pushing a merge that changes OpenCE's own
 # workflows needs a personal access token with the Contents and Workflows
@@ -31,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: "Build a draft release even if nothing changed since the last one"
+        description: "Build and publish a release even if nothing changed since the last one"
         type: boolean
         default: false
 
@@ -230,34 +232,18 @@ jobs:
           # (only forward: if main moved meanwhile, this fails and the next run merges again)
           git push origin "${{ needs.sync.outputs.sha }}:refs/heads/main"
 
-      - name: Make the draft release
+      - name: Publish the release
         run: |
           set -euo pipefail
           number="${{ needs.sync.outputs.number }}"
           sha="${{ needs.sync.outputs.sha }}"
           previous="${{ needs.sync.outputs.previous }}"
-          {
-            echo "OpenCE for Haiku, build $number, made automatically from $(git rev-parse --short "$sha")."
-            echo
-            echo "**This is a draft: test it, then publish it.** Players' games update to the latest published release."
-            echo
-            echo "Checked in a Haiku R1/beta6 virtual machine: it builds, and \`halo --version\` runs the game as build-$number."
-            echo "Not checked: playing it."
-            echo
-            if [ -n "$previous" ] && git cat-file -e "$previous^{commit}" 2>/dev/null; then
-              echo "Changes since the previous release:"
-              echo
-              git log --no-merges --format='- %s' "$previous..$sha" | head -n 60
-            fi
-            echo
-            echo "SHA-256:"
-            echo
-            echo '```'
-            cat dist/SHA256SUMS
-            echo '```'
-          } > notes.md
+          git remote add upstream "$UPSTREAM"
+          git fetch --quiet upstream main
+          sh tools/haiku_release_notes.sh "$number" "$previous" "$sha" upstream/main dist/SHA256SUMS > notes.md
+          # (published as the latest release: players' games offer it when they start)
           gh release create "build-$number" dist/halo-haiku-release.zip dist/SHA256SUMS \
-            --draft --target "$sha" --title "OpenCE for Haiku, build $number" --notes-file notes.md
+            --latest --target "$sha" --title "OpenCE for Haiku, build $number" --notes-file notes.md
 
   report:
     needs: [sync, build, release]

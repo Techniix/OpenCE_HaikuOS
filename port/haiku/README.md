@@ -144,16 +144,23 @@ when you run it by hand, it:
    is kept (`.gitattributes`). A merge that conflicts opens an issue and
    stops.
 2. builds the result in a Haiku R1/beta6 virtual machine as
-   `build-<n>` (the highest `build-` release, drafts too, plus 1), and checks
+   `build-<n>` (the highest `build-` release, drafts included, plus 1), and checks
    that `halo --version` runs the game and names that build;
-3. moves `main` to the merged code and makes a **draft** release with the
-   zip.
+3. moves `main` to the merged code and publishes the build as the latest
+   release, `build-<n>`, with the zip. Its notes
+   (`tools/haiku_release_notes.sh`) list OpenCE's pull requests merged
+   since the previous release, each with its commits, and this fork's own
+   commits.
 
-Nothing reaches players until you publish the draft. Download its zip, play
-it for a while, then click Publish release, with "Set as the latest
-release" ticked. A run that fails opens an issue: most often OpenCE has
-started to use an SDL or system function that the Haiku port does not
-bridge yet (`port/haiku/host_imports.list`, `guest/runtime/guest_sdl.c`).
+Players' games offer the new release the next time they start. The virtual
+machine checks that the game builds and starts, not that it plays well: if
+a release turns out to be broken, delete it on the Releases page (players
+then get the one before it as the latest, though a game that already
+updated stays updated) or fix it and run the workflow, which publishes the
+next number. A run that fails publishes nothing and opens an issue: most
+often OpenCE has started to use an SDL or system function that the Haiku
+port does not bridge yet (`port/haiku/host_imports.list`,
+`guest/runtime/guest_sdl.c`).
 
 To set it up, once:
 
@@ -169,7 +176,7 @@ To set it up, once:
    Windows builds as `build-<n>` releases and delete older ones. (Each run
    of the Haiku workflow disables them too.)
 3. Run "Haiku release" by hand (Actions → Haiku release → Run workflow),
-   and tick "force" for the first run.
+   and tick "force" for the first run. It publishes a release.
 
 GitHub stops scheduled workflows in a repository that has had no activity
 for 60 days. Each run enables the workflow again, which resets that count,

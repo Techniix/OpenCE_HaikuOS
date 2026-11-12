@@ -150,7 +150,8 @@ Android and the web are
 [upstream's releases](https://github.com/OpenCommunityEdition/OpenCE/releases/latest).
 
 The releases are built automatically from OpenCE's latest code, in a Haiku
-virtual machine on GitHub, and published after a test. To make such a zip
+virtual machine on GitHub, and published once the game builds and starts
+there. To make such a zip
 from your own build, enter `python3 tools/haiku_release.py` after building.
 It writes `dist/halo-haiku-release.zip`, with the licences that copies must
 carry. Refer to "Releases and updates" in
