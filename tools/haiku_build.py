@@ -148,7 +148,8 @@ VARIADIC_PROTOTYPES = Path("port/android/include/halo_android_variadic_prototype
 
 # the platform layer's units that run in the host (their structures are the
 # host C library's): every posix_*.c, built with the host's ABI
-HOST_POSIX_SOURCES = ("posix_files.c", "posix_net.c", "posix_server.c")
+HOST_POSIX_SOURCES = ("posix_files.c", "posix_net.c", "posix_server.c",
+                      "posix_mcc_preview.c", "posix_mcc_share.c")
 
 
 def _quote(path: Any) -> str:
