@@ -15,7 +15,8 @@ The package installs:
   attribute, and halo_guest.elf), the network lists, README-Haiku.md and the
   licences, as the zip has them;
 - data/deskbar/menu/Applications/OpenCE: a link to apps/OpenCE/halo, the
-  Deskbar's entry.
+  Deskbar's entry;
+- data/licenses/GNU AGPL v3: the licence, which Haiku does not ship.
 
 It holds no game data. Installed this way, the game's folder is read-only
 (packagefs), and the game knows it (platform_installed_package,
@@ -111,6 +112,12 @@ def main() -> int:
     # (Tracker and the Deskbar draw the program with the vector icon in its
     # BEOS:ICON attribute; the package keeps files' attributes)
     run("addattr", "-t", "icon", "-f", str(ICON), "BEOS:ICON", str(app / "halo"))
+
+    # (a licence Haiku does not ship in /system/data/licenses must be in the
+    # package, under the name its .PackageInfo gives: package create checks)
+    licenses = staging / "data" / "licenses"
+    licenses.mkdir(parents=True)
+    shutil.copy2(ROOT / "LICENSE", licenses / "GNU AGPL v3")
 
     menu = staging / "data" / "deskbar" / "menu" / "Applications"
     menu.mkdir(parents=True)
