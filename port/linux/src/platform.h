@@ -39,6 +39,20 @@ the SDK headers are read, exactly as game code sees them. */
 #define HALO_PORT_NAME "halo-linux"
 #endif
 
+#ifdef HALO_HAIKU_PORT
+/* 1 when the game's own folder cannot be written: installed from a package
+(opence, in apps/OpenCE), whose files packagefs keeps read-only. pkgman, not
+the game, then updates it, and what the game would write next to itself
+(config.toml, the maps folder it extracts) goes in
+platform_package_folder() instead (xbox_files.c) */
+int platform_installed_package(void);
+
+/* ~/config/settings/halo-haikuos, made if it is missing: the folder a
+packaged game keeps config.toml and its game data in, with its saves (the
+saves' default folder, platform_save_root) */
+const char *platform_package_folder(void);
+#endif
+
 /* prints "<HALO_PORT_NAME>: <message>" to stderr */
 void platform_log(const char *format, ...) __attribute__((format(printf, 1, 2)));
 

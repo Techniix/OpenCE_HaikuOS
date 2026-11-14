@@ -23,6 +23,7 @@ matched case-insensitively, like the Xbox's FATX volumes.
 #include "steam_workshop.h"
 #include "mcc_local_package.h"
 
+#include <SDL3/SDL.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -54,6 +55,43 @@ static void trim_separators(char *path)
 	while (strlen(path) > 1 && path[strlen(path) - 1] == '/')
 		path[strlen(path) - 1] = '\0';
 }
+
+#ifdef HALO_HAIKU_PORT
+static void make_directories(const char *path);
+
+int platform_installed_package(void)
+{
+	static int installed = -1;
+
+	if (installed < 0)
+	{
+		/* (packagefs refuses W_OK for every file it serves, with
+		B_READ_ONLY_DEVICE: packagefs_access, kernel_interface.cpp) */
+		const char *base = SDL_GetBasePath();
+
+		installed = base && *base && access(base, W_OK) != 0;
+		if (installed)
+			platform_log("installed as a package (%s is read-only): settings and game data are in %s, and "
+				"pkgman updates the game", base, platform_package_folder());
+	}
+	return installed;
+}
+
+const char *platform_package_folder(void)
+{
+	static char folder[MAX_PATH];
+
+	if (!folder[0])
+	{
+		const char *home = getenv("HOME");
+
+		snprintf(folder, sizeof(folder), "%s/config/settings/" HALO_PORT_NAME,
+			home && *home ? home : "/boot/home");
+		make_directories(folder);
+	}
+	return folder;
+}
+#endif
 
 const char *platform_data_root(void)
 {
@@ -87,6 +125,13 @@ const char *platform_data_root(void)
 				if (slash)
 					*slash = '\0';
 			}
+#ifdef HALO_HAIKU_PORT
+			/* port: a packaged game cannot write next to itself: the maps
+			folder is found in, and extracted to, its settings folder */
+			if (platform_installed_package())
+				snprintf(executable_directory, sizeof(executable_directory), "%s",
+					platform_package_folder());
+#endif
 			snprintf(root, sizeof(root), ".");
 			if (executable_directory[0] && has_maps(executable_directory))
 			{

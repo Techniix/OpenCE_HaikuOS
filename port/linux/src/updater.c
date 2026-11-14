@@ -742,6 +742,15 @@ void updater_start(void)
 	if (!slash)
 		return;
 	*slash = 0;
+#ifdef HALO_HAIKU_PORT
+	/* port: a packaged game cannot replace its own files (packagefs is
+	read-only); pkgman updates it */
+	if (platform_installed_package())
+	{
+		platform_log("update: not looked for: installed as a package, which pkgman updates");
+		return;
+	}
+#endif
 	updater_clean_up();
 	/* (not for builds without a number, the player's no, or runs nobody is
 	watching, but for a test with its answer) */
@@ -783,6 +792,11 @@ int updater_server_check(void)
 
 	if (HALO_BUILD_NUMBER <= 0)
 		return 0;
+#ifdef HALO_HAIKU_PORT
+	/* port: (as updater_start) */
+	if (platform_installed_package())
+		return 0;
+#endif
 	if (!updater_directory[0])
 	{
 		if (!update_executable_path(updater_executable, sizeof(updater_executable)))

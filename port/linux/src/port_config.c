@@ -1454,6 +1454,15 @@ static void config_path(char *path, size_t size)
 	}
 	if (config_argument("--config", path, size) && *path)
 		return;
+#ifdef HALO_HAIKU_PORT
+	/* port: a packaged game's folder is read-only, so its config.toml is in
+	its settings folder (xbox_files.c) */
+	if (platform_installed_package())
+	{
+		snprintf(path, size, "%s/config.toml", platform_package_folder());
+		return;
+	}
+#endif
 	base = SDL_GetBasePath();
 	snprintf(path, size, "%sconfig.toml", base ? base : "");
 #endif
