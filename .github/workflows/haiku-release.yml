@@ -189,11 +189,13 @@ jobs:
             # the game loads, runs and knows its build (a hang fails in 5 minutes)
             timeout 300 ./build/haiku/halo --version | tee version.txt
             grep -q "^OpenCE build-$HALO_BUILD_NUMBER " version.txt
-            # only the two programs and their checksums come back out
+            # the package, which needs Haiku's own tools (package, addattr)
+            python3 tools/haiku_package.py "$HALO_BUILD_NUMBER"
+            # only the two programs, the package and their checksums come back out
             mkdir -p out
-            cp build/haiku/halo build/haiku/halo_guest.elf out/
-            (cd out && sha256sum halo halo_guest.elf > SHA256SUMS && sha256sum -c SHA256SUMS)
-            rm -rf build
+            cp build/haiku/halo build/haiku/halo_guest.elf "dist/opence-$HALO_BUILD_NUMBER-1-x86_64.hpkg" out/
+            (cd out && sha256sum halo halo_guest.elf opence-*.hpkg > SHA256SUMS && sha256sum -c SHA256SUMS)
+            rm -rf build dist
 
       - name: Check the programs and pack them
         run: |
@@ -202,13 +204,15 @@ jobs:
           mkdir -p build/haiku
           cp out/halo out/halo_guest.elf build/haiku/
           python3 tools/haiku_release.py release
-          (cd dist && sha256sum halo-haiku-release.zip > SHA256SUMS && cat SHA256SUMS)
+          cp out/opence-*.hpkg dist/
+          (cd dist && sha256sum halo-haiku-release.zip opence-*.hpkg > SHA256SUMS && cat SHA256SUMS)
 
       - uses: actions/upload-artifact@v4
         with:
           name: halo-haiku-release
           path: |
             dist/halo-haiku-release.zip
+            dist/opence-*.hpkg
             dist/SHA256SUMS
           retention-days: 7
           if-no-files-found: error
@@ -245,7 +249,7 @@ jobs:
           git fetch --quiet upstream main
           sh tools/haiku_release_notes.sh "$number" "$previous" "$sha" upstream/main dist/SHA256SUMS > notes.md
           # (published as the latest release: players' games offer it when they start)
-          gh release create "build-$number" dist/halo-haiku-release.zip dist/SHA256SUMS \
+          gh release create "build-$number" dist/halo-haiku-release.zip dist/opence-*.hpkg dist/SHA256SUMS \
             --latest --target "$sha" --title "OpenCE for Haiku, build $number" --notes-file notes.md
 
   report:

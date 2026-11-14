@@ -66,7 +66,10 @@ echo "Built in a Haiku R1/beta6 virtual machine, where \`halo --version\` loads 
 echo
 echo "## Installing"
 echo
-echo "Builds 4 and later offer this update themselves when the game starts. Otherwise unzip \`halo-haiku-release.zip\` and start \`halo\` in its folder; it asks for your own Halo: Combat Evolved Xbox disc image the first time (README-Haiku.md)."
+echo "- **Package:** \`pkgman install ./opence-$number-1-x86_64.hpkg\` installs it in \`apps/OpenCE\`, with SDL3 and a Deskbar entry. Installed from a package repository, pkgman updates it."
+echo "- **Zip:** games from builds 4 and later offer this update themselves when they start. Otherwise unzip \`halo-haiku-release.zip\` and start \`halo\` in its folder (SDL3: \`pkgman install libsdl3\`)."
+echo
+echo "The first start asks for your own Halo: Combat Evolved Xbox disc image (README-Haiku.md)."
 
 if [ -n "$sums" ]; then
 	echo

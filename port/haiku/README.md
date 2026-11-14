@@ -93,9 +93,27 @@ The project uses that build to test the Haiku code paths without Haiku.
 
 ## Play
 
-Put your Xbox disc image (`.iso` or `.xiso`) beside `halo`, then start
-`halo`. Haiku has no file picker that the game can use, so the disc image
-must be in that folder. The first start extracts the `maps` folder.
+The first start offers to extract the `maps` folder from your Xbox disc
+image (`.iso` or `.xiso`): one beside `halo` if there is one, otherwise the
+one you pick in a file panel. No game data is included.
+
+### From the package
+
+Each release also has a package, `opence-<n>-1-x86_64.hpkg`, which installs
+the game in `apps/OpenCE` with a Deskbar entry (Applications > OpenCE) and
+brings SDL3 with it:
+
+```sh
+pkgman install ./opence-<n>-1-x86_64.hpkg
+```
+
+Installed this way, the game's folder is read-only (packagefs), and the game
+notices: its updater stays off (pkgman updates it, from a repository that
+carries it), and `config.toml` and the `maps` folder it extracts go in
+`~/config/settings/halo-haikuos`, with the saves. Its log says so at
+start-up (`installed as a package`).
+
+### From the zip or your own build
 
 ```sh
 mkdir -p ~/halo

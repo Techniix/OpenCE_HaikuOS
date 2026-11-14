@@ -142,10 +142,17 @@ cp build/haiku/halo build/haiku/halo_guest.elf build/haiku/*.txt ~/halo/
 
 Ready-made Haiku builds are on this fork's
 [Releases](https://github.com/Techniix/OpenCE_HaikuOS/releases) page, as
-`halo-haiku-release.zip`. Unpack it, install SDL3 (`pkgman install libsdl3`),
-put your disc image in the folder and start `halo`. Its `README.txt` says
-the rest. These builds update themselves: when a newer release is out, the
-game offers to install it when it starts. The downloads for Windows, Linux,
+`halo-haiku-release.zip` and as a package, `opence-<n>-1-x86_64.hpkg`.
+
+- **The package:** `pkgman install ./opence-<n>-1-x86_64.hpkg` installs the
+  game, SDL3 with it, and a Deskbar entry (Applications > OpenCE). pkgman
+  updates it.
+- **The zip:** unpack it, install SDL3 (`pkgman install libsdl3`) and start
+  `halo`. Its `README.txt` says the rest. The zip's game updates itself:
+  when a newer release is out, it offers to install it when it starts.
+
+Either way, the first start asks for your own Halo: Combat Evolved Xbox
+disc image and extracts its maps. The downloads for Windows, Linux,
 Android and the web are
 [upstream's releases](https://github.com/OpenCommunityEdition/OpenCE/releases/latest).
 
