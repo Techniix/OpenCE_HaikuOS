@@ -4,7 +4,8 @@ name: Haiku release
 #
 # 1. sync: merges OpenCE's main into this fork's main (README.md keeps this
 #    fork's: .gitattributes). A merge that conflicts opens an issue and
-#    stops; nothing changes. With nothing new since the last release, it
+#    fails the run, each night until it is merged by hand; nothing
+#    changes. With nothing new since the last release, it
 #    stops too (unless run by hand with "force").
 # 2. build: builds the merged code in a Haiku R1/beta6 virtual machine
 #    (cross-platform-actions), as release build-<n>, and checks it there:
@@ -115,6 +116,11 @@ jobs:
               gh issue create --title "$title" --body-file issue.md ||
                 echo "::warning::Could not open an issue (are Issues enabled in Settings?): $title"
             fi
+            # (the run fails, every night until the merge is done by hand, so
+            # that the Actions tab shows it and GitHub mails it: an open issue
+            # alone went unnoticed for days)
+            echo "::error::Merging OpenCE's main conflicts in: $(echo $files): merge it by hand ($title)"
+            exit 1
           fi
 
       - name: Decide whether to build
@@ -262,6 +268,11 @@ jobs:
       - name: Open an issue
         run: |
           title="The Haiku release workflow failed"
+          # (a conflict has its own issue, opened by the sync job)
+          if [ -n "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"OpenCE's changes conflict with the Haiku port\" in:title" --json number --jq '.[].number' 2>/dev/null)" ]; then
+            echo "::warning::OpenCE's changes conflict with the Haiku port: refer to its issue"
+            exit 0
+          fi
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           echo "::warning::$title: $run_url"
           {
